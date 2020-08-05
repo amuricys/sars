@@ -1,6 +1,6 @@
 use types::*;
 use rand::Rng;
-use graph::norm;
+use vector_2d_helpers::{direction_vector, distance_between_nodes};
 
 pub fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
@@ -24,10 +24,17 @@ fn revert_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange
     }
 }
 
-pub(crate) fn apply_changes(g: &mut Graph, changes: Vec<NodeChange>) {
+pub (crate) fn apply_changes(g: &mut Graph, changes: &Vec<NodeChange>) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for change in changes {
-        apply_change(g, change);
+        apply_change(g, change.clone());
+    }
+}
+
+pub (crate) fn revert_changes(g: &mut Graph, changes: &Vec<NodeChange>) {
+    /* TODO: This should be atomic if the callers are to be concurrent */
+    for change in changes {
+        revert_change(g, change.clone());
     }
 }
 
@@ -49,10 +56,7 @@ fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::Threa
     }
 }
 
-fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
-    norm(n1.x - n2.x, n1.y - n2.y)
-}
-
+/* TODO: These fns are almost the same. There is a smarter way to do this */
 pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<NodeChange> {
     let mut ret = Vec::new();
     ret.push(change);
@@ -60,7 +64,7 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
     let mut dist_traveled_next = 0.0;
     let mut cur_next = &g.nodes[change.id];
     let mut cur_prev = &g.nodes[change.id];
-    println!("diffs:");
+
     loop {
         cur_next = cur_next.next(g);
         cur_prev = cur_prev.prev(g);
@@ -74,13 +78,11 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
         if !enough_next {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth - dist_traveled_next) / how_smooth;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth - dist_traveled_next) / how_smooth;
-            println!("({:?},{:?})", diff_x, diff_y);
             ret.push(NodeChange{id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y});
         }
         if !enough_prev {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth - dist_traveled_prev) / how_smooth;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth - dist_traveled_prev) / how_smooth;
-            println!("({:?},{:?})", diff_x, diff_y);
             ret.push(NodeChange{id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y});
         }
         if enough_next && enough_prev { break; }
@@ -95,7 +97,7 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
     let mut dist_traveled_next = 0;
     let mut cur_next = &g.nodes[change.id];
     let mut cur_prev = &g.nodes[change.id];
-    println!("diffs:");
+
     loop {
         cur_next = cur_next.next(g);
         cur_prev = cur_prev.prev(g);
@@ -109,16 +111,36 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
         if !enough_next {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth  as f64;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
-            println!("({:?},{:?})", diff_x, diff_y);
             ret.push(NodeChange{id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y});
         }
         if !enough_prev {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
-            println!("({:?},{:?})", diff_x, diff_y);
             ret.push(NodeChange{id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y});
         }
         if enough_next && enough_prev { break; }
+    }
+    ret
+}
+
+
+/* TODO:
+   This way of doing this is actually probably bad, because it doesn't take simultaneous changes into account.
+   Meaning an inner node is calculating its position in comparison only to its immediate outer correspondent, and
+   not to its neighbors, which probably also changed due to smoothing. */
+pub fn changes_in_other_graph(other_graph: &Graph, other_graph_changes: &Vec<NodeChange>, this_graph: &Graph) -> Vec<NodeChange> {
+    let mut ret = Vec::new();
+    for c in other_graph_changes {
+        let cur_node = &other_graph.nodes[c.id];
+        let node_across = &this_graph.nodes[c.id]; // TODO: THIS SHOULD LOOK AT ACROSS
+        let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
+
+        let dist= distance_between_nodes(cur_node, node_across);
+        let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
+
+        /* So the inner node should be OUTER NODE'S position pushed in dir_x, dir_y direction with dist * compression magnitude */
+        let (delta_x, delta_y) = (c.new_x - dir_x * dist, c.new_y - dir_y * dist);
+        ret.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: delta_x, new_y: delta_y})
     }
     ret
 }

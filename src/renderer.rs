@@ -6,31 +6,30 @@ use piston::window::WindowSettings;
 
 use types::{Graph};
 
-pub struct Renderer {
+pub struct Renderer<'a> {
     gl: GlGraphics, // OpenGL drawing backend.
     rotation: f64,  // Rotation for the square.
     colors: Vec<[f32; 4]>,
-    graphs: Vec<Graph>,
+    graphs: Vec<&'a Graph>,
 }
 
-impl Renderer {
+impl Renderer <'_> {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
-        let outer_color = self.colors[0];
-        let inner_color = self.colors[1];
 
         let rotation = self.rotation;
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
 
         let mut lines_to_draw = Vec::new();
 
-        for g in &self.graphs {
+        for i in 0..self.graphs.len() {
+            let g = &self.graphs[i];
             for edge in &g.edges {
                 let from = [g.nodes[edge.source].x * args.window_size[0] / 2.0, g.nodes[edge.source].y * (- args.window_size[0] / 2.0)];
                 let to = [g.nodes[edge.target].x * args.window_size[0] / 2.0, g.nodes[edge.target].y * (- args.window_size[0] / 2.0)];
-                lines_to_draw.push((from, to));
+                lines_to_draw.push((from, to, self.colors[i]));
             }
         }
 
@@ -45,8 +44,8 @@ impl Renderer {
                 .rot_rad(rotation)
                 .trans(-0.0, -0.0);
 
-            for (f, t) in lines_to_draw {
-                line_from_to(outer_color, 0.5, f, t, transform, gl);
+            for (f, t, color) in lines_to_draw {
+                line_from_to(color, 0.5, f, t, transform, gl);
             }
         });
     }
@@ -57,18 +56,18 @@ impl Renderer {
     }
 }
 
-pub fn setup_renderer(graphs: Vec<Graph>) -> (Window, Renderer) {
+pub fn setup_renderer(graphs: Vec<&Graph>) -> (Window, Renderer) {
     let opengl = OpenGL::V3_2;
 
     // Create an Glutin window.
-    let mut window: Window = WindowSettings::new("spinning-square", [800, 800])
+    let window: Window = WindowSettings::new("spinning-square", [800, 800])
         .graphics_api(opengl)
         .exit_on_esc(true)
         .build()
         .unwrap();
 
     // Create a new game and run it.
-    let mut app = Renderer {
+    let app = Renderer {
         gl: GlGraphics::new(opengl),
         rotation: 0.0,
         graphs: graphs,

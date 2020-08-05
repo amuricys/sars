@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::f64::consts::PI;
 
 use types::*;
+use vector_2d_helpers::{norm};
 
 
 pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
@@ -52,10 +53,6 @@ pub fn area(g: &Graph) -> f64 {
     ret / 2.0
 }
 
-pub fn norm(x: f64, y: f64) -> f64 {
-    (x * x + y * y).sqrt()
-}
-
 pub fn perimeter(g: &Graph) -> f64 {
     let mut ret = 0.0;
     let first = &g.nodes[0];
@@ -69,6 +66,23 @@ pub fn perimeter(g: &Graph) -> f64 {
         if cur == first { break; }
     }
     ret
+}
+
+fn graph_to_lines(g: &Graph) -> Vec<(f64,f64,f64,f64)> {
+    let mut ret = Vec::new();
+    for edge in &g.edges {
+        let node1 = &g.nodes[edge.source];
+        let node2 = &g.nodes[edge.target];
+        ret.push((node1.x, node1.y, node2.x, node2.y));
+    }
+    ret
+}
+
+pub fn thick_surface_to_lines(ts: &ThickSurface) -> Vec<(f64,f64,f64,f64)> {
+    let mut outer_lines = graph_to_lines(&ts.outer);
+    let mut inner_lines = graph_to_lines(&ts.inner);
+    outer_lines.append(&mut inner_lines);
+    outer_lines
 }
 
 #[cfg(test)]
