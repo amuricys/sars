@@ -27,19 +27,18 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
     to_return
 }
 
-fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) -> ThickSurface {
+fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
     for i in 0..outer.nodes.len() {
         outer.nodes[i].across.insert(i);
         inner.nodes[i].across.insert(i);
     }
-    ThickSurface {outer: outer.clone(), inner: inner.clone(), edges: vec![] }
 }
 
 pub fn thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
     let mut outer = circular_graph(0.0, 0.0, radius, num_points);
     let mut inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
-
-    establish_correspondences(&mut outer, &mut inner)
+    establish_correspondences(&mut outer, &mut inner);
+    ThickSurface{layers: Vec::from([outer, inner]), edges: Vec::new()}
 }
 
 pub fn area(g: &Graph) -> f64 {
@@ -79,8 +78,8 @@ fn graph_to_lines(g: &Graph) -> Vec<(f64,f64,f64,f64)> {
 }
 
 pub fn thick_surface_to_lines(ts: &ThickSurface) -> Vec<(f64,f64,f64,f64)> {
-    let mut outer_lines = graph_to_lines(&ts.outer);
-    let mut inner_lines = graph_to_lines(&ts.inner);
+    let mut outer_lines = graph_to_lines(&ts.layers[OUTER]);
+    let mut inner_lines = graph_to_lines(&ts.layers[INNER]);
     outer_lines.append(&mut inner_lines);
     outer_lines
 }
@@ -109,7 +108,7 @@ mod tests {
         let size_of_test_circ = 4;
 
         let test_circ = thick_surface(1.0, 0.3, size_of_test_circ);
-        for n in test_circ.outer.nodes {
+        for n in &test_circ.layers[OUTER].nodes {
             assert!(n.across.contains(&n.id))
         }
     }

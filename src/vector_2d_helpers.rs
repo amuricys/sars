@@ -12,16 +12,17 @@ pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
     norm(n1.x - n2.x, n1.y - n2.y)
 }
 
-pub fn direction_vector(middle_x: f64, middle_y: f64, left_x: f64, left_y: f64, right_x: f64, right_y: f64) -> (f64, f64) {
-    let (normed_offset_left_x, normed_offset_left_y) = normed_vector(left_x - middle_x, left_y - middle_y);
-    let (normed_offset_right_x, normed_offset_right_y) = normed_vector(right_x - middle_x, right_y - middle_y);
+pub fn direction_vector(middle_x: f64, middle_y: f64, clkwise_x: f64, clkwise_y: f64, ctrclkwise_x: f64, ctrclkwise_y: f64) -> (f64, f64) {
+    let (normed_offset_clkwise_x, normed_offset_clkwise_y) = normed_vector(clkwise_x - middle_x, clkwise_y - middle_y);
+    let (normed_offset_ctrclkwise_x, normed_offset_ctrclkwise_y) = normed_vector(ctrclkwise_x - middle_x, ctrclkwise_y - middle_y);
 
-    let (mut dir_x, mut dir_y) = ((normed_offset_left_x + normed_offset_right_x) * 0.5, (normed_offset_left_y + normed_offset_right_y) * 0.5);
+    let (mut dir_x, mut dir_y) = ((normed_offset_clkwise_x + normed_offset_ctrclkwise_x) * 0.5, (normed_offset_clkwise_y + normed_offset_ctrclkwise_y) * 0.5);
 
     if dir_x == 0.0 && dir_y == 0.0 {
-        dir_x = -normed_offset_left_y; dir_y = normed_offset_left_x; // Rotate 90 degrees
+        dir_x = -normed_offset_clkwise_y; dir_y = normed_offset_clkwise_x; // Rotate 90 degrees
     }
-    let (at_zero_x, at_zero_y) = normed_vector(right_y - left_y, left_x - right_x);
+    let (at_zero_x, at_zero_y) = normed_vector(ctrclkwise_y - clkwise_y, clkwise_x - ctrclkwise_x);
+    // If vectors form a reflex angle, their average will be in the opposite direction
     if norm(at_zero_x - dir_x, at_zero_y - dir_y) > norm(at_zero_x + dir_x, at_zero_y + dir_y) {
         normed_vector(-dir_x, -dir_y)
     } else {
@@ -77,11 +78,15 @@ pub fn lines_intersection (lines: &Vec<(f64,f64,f64,f64)>) -> Option<(f64, f64)>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use float_cmp::approx_eq;
 
     #[test]
     fn direction_for_inner_push_is_correct() {
         // TODO: Looks kinda good but deserves more thought
-        assert_eq!(direction_vector(0.0, 0.0, -1.0, -0.5, 1.0, -0.5), (0.0, -1.0))
+        assert_eq!(direction_vector(0.0, 0.0, -1.0, -0.5, 1.0, -0.5), (0.0, -1.0));
+        let (some_dir_x, some_dir_y) = direction_vector(0.0, 0.0, 0.0, 100.0, 1.0, 0.0);
+        assert_eq!(some_dir_y, some_dir_y);
+        approx_eq!(f64, norm(some_dir_x, some_dir_y), 1.0);
     }
 
     #[test]

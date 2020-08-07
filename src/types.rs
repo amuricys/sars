@@ -51,9 +51,10 @@ pub struct EdgeOuterToInner {
     pub target: NodeIndex,
     pub source: NodeIndex,
 }
+pub const OUTER: usize = 0;
+pub const INNER: usize = 1;
 #[derive(Debug, Clone)]
 pub struct ThickSurface {
-    pub inner: Graph,
-    pub outer: Graph,
+    pub layers: Vec<Graph>,
     pub edges: Vec<EdgeOuterToInner>,
 }

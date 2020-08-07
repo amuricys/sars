@@ -10,21 +10,19 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 extern crate rand;
-
-use types::NodeChange;
-use simulated_annealing::step;
+extern crate float_cmp;
 
 fn main() {
-    let mut my_graph = graph::thick_surface(0.8, 0.2,  100);
-    let my_change = NodeChange {id: 0, cur_x: my_graph.outer.nodes[0].x, cur_y: my_graph.outer.nodes[0].y, new_x: my_graph.outer.nodes[0].x + 0.2, new_y: my_graph.outer.nodes[0].y};
-    let changeset = graph_change::smooth_change_out2(&my_graph.outer, my_change, 10);
-    let inner_changeset = graph_change::changes_in_other_graph(&my_graph.outer, &changeset, &my_graph.inner);
-    graph_change::apply_changes(&mut my_graph.outer, &changeset);
-    graph_change::apply_changes(&mut my_graph.inner, &inner_changeset);
+    /* Parameter setting TODO: Move to some config file that is read on startup */
+    let initial_thickness = 0.02;
+    let initial_radius = 1.0;
+    let initial_num_points = 200;
+    let initial_temperature = 0.0;
+    let compression_factor = 1.2;
+    let mut my_graph = graph::thick_surface(initial_radius, initial_thickness,  initial_num_points);
+    let mut rng = rand::thread_rng();
 
-    step(&mut my_graph, 1.0);
-
-    let (mut window, mut renderer) = renderer::setup_renderer(Vec::from([&my_graph.outer, &my_graph.inner]));
-
-    renderer::event_loop(&mut renderer, &mut window);
+    let (mut renderer, mut window) = renderer::setup_renderer();
+    
+    renderer::setup_optimization_and_loop(&mut my_graph, &mut rng, &mut window, &mut renderer, initial_temperature, compression_factor, 10)
 }

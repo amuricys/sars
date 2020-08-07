@@ -4,35 +4,23 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 
-use types::{Graph};
+use types::{ThickSurface, OUTER, INNER};
+use simulated_annealing;
+use graph;
 
-pub struct Renderer<'a> {
+pub struct Renderer {
     gl: GlGraphics, // OpenGL drawing backend.
     rotation: f64,  // Rotation for the square.
-    colors: Vec<[f32; 4]>,
-    graphs: Vec<&'a Graph>,
 }
 
-impl Renderer <'_> {
-    fn render(&mut self, args: &RenderArgs) {
+impl Renderer {
+    fn render(&mut self, args: &RenderArgs, lines: &Vec<(f64, f64, f64, f64)>) {
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
-
+        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
         let rotation = self.rotation;
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
-
-        let mut lines_to_draw = Vec::new();
-
-        for i in 0..self.graphs.len() {
-            let g = &self.graphs[i];
-            for edge in &g.edges {
-                let from = [g.nodes[edge.source].x * args.window_size[0] / 2.0, g.nodes[edge.source].y * (- args.window_size[0] / 2.0)];
-                let to = [g.nodes[edge.target].x * args.window_size[0] / 2.0, g.nodes[edge.target].y * (- args.window_size[0] / 2.0)];
-                lines_to_draw.push((from, to, self.colors[i]));
-            }
-        }
-
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
@@ -44,8 +32,8 @@ impl Renderer <'_> {
                 .rot_rad(rotation)
                 .trans(-0.0, -0.0);
 
-            for (f, t, color) in lines_to_draw {
-                line_from_to(color, 0.5, f, t, transform, gl);
+            for (x1, y1, x2, y2) in lines {
+                line_from_to(WHITE, 0.5, [x1  * args.window_size[0] / 2.0, y1 * (- args.window_size[0] / 2.0)], [x2  * args.window_size[0] / 2.0,y2* (- args.window_size[0] / 2.0)], transform, gl);
             }
         });
     }
@@ -56,7 +44,42 @@ impl Renderer <'_> {
     }
 }
 
-pub fn setup_renderer(graphs: Vec<&Graph>) -> (Window, Renderer) {
+pub fn setup_optimization_and_loop(ts: &mut ThickSurface, 
+    rng: &mut rand::rngs::ThreadRng,
+    window: &mut Window,
+    renderer: &mut Renderer,
+    initial_temperature: f64,
+    compression_factor: f64,
+    how_smooth: usize) {
+    let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
+    
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(window) {
+        let mut lines = Vec::new();
+        for i in 0..ts.layers.len() {
+            let g = &ts.layers[i];
+            for edge in &g.edges {
+                lines.push((
+                    g.nodes[edge.source].x,
+                    g.nodes[edge.source].y,
+                    g.nodes[edge.target].x,
+                    g.nodes[edge.target].y));
+            }
+        }
+
+        if let Some(args) = e.render_args() {
+            renderer.render(&args, &lines);
+        }
+
+        if let Some(args) = e.update_args() {
+            renderer.update(&args);
+        }
+        
+        simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, rng);
+    }
+}
+
+pub fn setup_renderer() -> (Renderer, Window) {
     let opengl = OpenGL::V3_2;
 
     // Create an Glutin window.
@@ -69,26 +92,8 @@ pub fn setup_renderer(graphs: Vec<&Graph>) -> (Window, Renderer) {
     // Create a new game and run it.
     let app = Renderer {
         gl: GlGraphics::new(opengl),
-        rotation: 0.0,
-        graphs: graphs,
-        colors: Vec::from([
-            [1.0, 1.0, 1.0, 1.0], // white
-            [1.0, 0.0, 1.0, 1.0], // purple
-        ])
+        rotation: 0.0
     };
-
-    (window, app)
+    (app, window)
 }
 
-pub fn event_loop(renderer: &mut Renderer, window: &mut Window) {
-    let mut events = Events::new(EventSettings::new());
-    while let Some(e) = events.next(window) {
-        if let Some(args) = e.render_args() {
-            renderer.render(&args);
-        }
-
-        if let Some(args) = e.update_args() {
-            renderer.update(&args);
-        }
-    }
-}

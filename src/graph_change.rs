@@ -43,7 +43,7 @@ fn random_node(g: &Graph, rng: &mut rand::rngs::ThreadRng) -> NodeIndex {
     annoyingly_needed_due_to_rusts_type_inference % g.nodes.len()
 }
 
-fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::ThreadRng) -> NodeChange {
+pub fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::ThreadRng) -> NodeChange {
     let to_change = random_node(g, rng);
     let x_change = rng.gen_range(low, high);
     let y_change = rng.gen_range(low, high);
@@ -124,22 +124,22 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
 }
 
 
-/* TODO:
+/* NEXTSTEP:
    This way of doing this is actually probably bad, because it doesn't take simultaneous changes into account.
-   Meaning an inner node is calculating its position in comparison only to its immediate outer correspondent, and
-   not to its neighbors, which probably also changed due to smoothing. */
-pub fn changes_in_other_graph(other_graph: &Graph, other_graph_changes: &Vec<NodeChange>, this_graph: &Graph) -> Vec<NodeChange> {
+   Meaning an inner node is calculating its position in comparison only to its immediate outer correspondent, without
+   considering the correspondent's neighbors, which probably also changed due to smoothing. */
+pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_graph_changes: &Vec<NodeChange>, compression_factor: f64) -> Vec<NodeChange> {
     let mut ret = Vec::new();
     for c in other_graph_changes {
+        /* TODO: Compression, look at across, better understand. */
         let cur_node = &other_graph.nodes[c.id];
-        let node_across = &this_graph.nodes[c.id]; // TODO: THIS SHOULD LOOK AT ACROSS
+        let node_across = &this_graph.nodes[c.id];
         let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
 
         let dist= distance_between_nodes(cur_node, node_across);
         let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
 
-        /* So the inner node should be OUTER NODE'S position pushed in dir_x, dir_y direction with dist * compression magnitude */
-        let (delta_x, delta_y) = (c.new_x - dir_x * dist, c.new_y - dir_y * dist);
+        let (delta_x, delta_y) = (c.new_x - dir_x * dist * compression_factor, c.new_y - dir_y * dist * compression_factor);
         ret.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: delta_x, new_y: delta_y})
     }
     ret
