@@ -1,6 +1,8 @@
 use types::*;
 use rand::Rng;
 use vector_2d_helpers::{direction_vector, distance_between_nodes};
+use graph_change::NeighborlyStatus::{FirstToSecond, SecondToFirst, NotNeighbors};
+use std::collections::HashSet;
 
 pub fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
@@ -123,6 +125,83 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
     ret
 }
 
+/*
+void addNode2(Graph::Surface *belonging, Graph::Node *a, Graph::Node *b, double bothCorrsDist) {
+        auto neighborlyStatus = assertNeighbors(a, b);
+
+        auto nodeToBeCommitted = new Graph::Node();
+        nodeToBeCommitted->coords[Graph::X] = (a->coords[Graph::X] + b->coords[Graph::X]) / 2;
+        nodeToBeCommitted->coords[Graph::Y] = (a->coords[Graph::Y] + b->coords[Graph::Y]) / 2;
+        nodeToBeCommitted->to = neighborlyStatus == 1 ? a : b;
+        nodeToBeCommitted->from = neighborlyStatus == 1 ? b : a;
+        Correspondent c = getCorrespondents(nodeToBeCommitted->coords[Graph::X],
+                                            nodeToBeCommitted->coords[Graph::Y], a, b, bothCorrsDist);
+
+        if (c.commonCorr != nullptr) {
+            mergeCorrespondencesIntoNewNode(nodeToBeCommitted, c.commonCorr);
+        } else {
+            correspondNodeToNodes(nodeToBeCommitted, c.corrs);
+        }
+
+        belonging->nodes.push_back(nodeToBeCommitted);
+
+        a->to = neighborlyStatus == 1 ? a->to : nodeToBeCommitted;
+        a->from = neighborlyStatus == 1 ? nodeToBeCommitted : a->from;
+
+        b->to = neighborlyStatus == 0 ? b->to : nodeToBeCommitted;
+        b->from = neighborlyStatus == 0 ? nodeToBeCommitted : b->from;
+    }
+*/
+#[derive(Debug, PartialEq)]
+enum NeighborlyStatus {
+    FirstToSecond,
+    SecondToFirst,
+    NotNeighbors
+}
+
+fn neighborly_status(g: &Graph, id1: usize, id2: usize) -> NeighborlyStatus {
+    if g.nodes[id1].next(g).id == id2 && g.nodes[id2].prev(g).id == id1 {
+        FirstToSecond
+    } else if g.nodes[id1].prev(g).id == id2 && g.nodes[id2].next(g).id == id1 {
+        SecondToFirst
+    } else {
+        NotNeighbors
+    }
+}
+
+fn lookup_id(g: &Graph) -> usize {
+    /* Graph nodes should be Option(Node)s */
+    g.nodes.len() - 1
+}
+
+fn add_node_(g: &mut Graph, left_id: usize, right_id: usize){
+    let new_node_id = lookup_id(&g);
+    let new_edge_id = g.edges.len() - 1;
+    let new_node = Node {
+        id: new_node_id,
+        x: (g.nodes[left_id].x + g.nodes[right_id].x) / 2.0,
+        y: (g.nodes[left_id].y + g.nodes[right_id].y) / 2.0,
+        inc: g.edges[g.nodes[left_id].out].id,
+        out: new_edge_id,
+        across: HashSet::new() // TODO this will break
+    };
+    let new_edge = EdgeSameSurface {
+        id: new_edge_id,
+        source: new_node_id,
+        target: g.nodes[right_id].id
+    };
+    g.edges[g.nodes[left_id].out].target = new_node_id;
+    g.nodes.push(new_node);
+    g.edges.push(new_edge);
+}
+
+pub fn add_node(g: &mut Graph, id1: usize, id2: usize) -> Result<(), &str>{
+    match neighborly_status(g, id1, id2) {
+        FirstToSecond => Ok(add_node_(g, id1, id2)),
+        SecondToFirst => Ok(add_node_(g, id2, id1)),
+        NotNeighbors => Err("Tried adding node between two non-neighbors")
+    }
+}
 
 /* NEXTSTEP:
    This way of doing this is actually probably bad, because it doesn't take simultaneous changes into account.
@@ -131,7 +210,7 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
 pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_graph_changes: &Vec<NodeChange>, compression_factor: f64) -> Vec<NodeChange> {
     let mut ret = Vec::new();
     for c in other_graph_changes {
-        /* TODO: Compression, look at across, better understand. */
+        /* TODO: Compression, look at across, better understand. LOL it's breaking because we add nodes to outside. LOOK AT ACROSS */
         let cur_node = &other_graph.nodes[c.id];
         let node_across = &this_graph.nodes[c.id];
         let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
@@ -139,8 +218,8 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
         let dist= distance_between_nodes(cur_node, node_across);
         let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
 
-        let (delta_x, delta_y) = (c.new_x - dir_x * dist * compression_factor, c.new_y - dir_y * dist * compression_factor);
-        ret.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: delta_x, new_y: delta_y})
+        let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
+        ret.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
     }
     ret
 }

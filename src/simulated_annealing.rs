@@ -1,8 +1,9 @@
 use types::{ThickSurface, NodeChange, OUTER, INNER};
-use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph};
+use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node};
 use graph;
-use vector_2d_helpers::lines_intersection;
+use vector_2d_helpers::{lines_intersection, distance_between_nodes};
 use rand::Rng;
+use piston::input::keyboard::Key::Out;
 
 const SOME_HUGE_FUCKIN_VALUE: f64 = 100_000_000.0;
 
@@ -32,6 +33,47 @@ fn probability(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64
     }
 }
 
+fn intersection_effects(ts: &mut ThickSurface,
+                        outer_changes: &Vec<NodeChange>,
+                        inner_changes: &Vec<NodeChange>,
+                        energy_state: f64,
+                        energy_neighbor: f64,
+                        temperature: f64,
+                        rng: &mut rand::rngs::ThreadRng) {
+    let lines = graph::thick_surface_to_lines(ts);
+    match lines_intersection(&lines) {
+        Some(_) => {
+            revert_changes(&mut ts.layers[OUTER], outer_changes);
+            revert_changes(&mut ts.layers[INNER], inner_changes);
+        }
+        None => {
+            let coin_flip = rng.gen_range(0.0, 1.0);
+            if probability(energy_state, energy_neighbor, temperature) < coin_flip {
+                revert_changes(&mut ts.layers[OUTER], outer_changes);
+                revert_changes(&mut ts.layers[INNER], inner_changes);
+            }
+        }
+    }
+}
+
+fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
+    let mut node_to_add = None;
+    for n in &ts.layers[OUTER].nodes {
+        if distance_between_nodes(n, n.next(&ts.layers[OUTER])) > addition_threshold {
+            node_to_add = Some((n.id, n.next(&ts.layers[OUTER]).id));
+        }
+    }
+    match node_to_add {
+        None => {}
+        Some((id1, id2)) => {
+            match add_node(&mut ts.layers[OUTER], id1, id2) {
+                Ok(_) => println!("heyyy!"),
+                Err(err) => println!("{}", err)
+            }
+        }
+    }
+}
+
 pub fn step(ts: &mut ThickSurface,
             initial_gray_matter_area: f64,
             temperature: f64,
@@ -45,18 +87,6 @@ pub fn step(ts: &mut ThickSurface,
     apply_changes(&mut ts.layers[INNER], &inner_changes);
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
-    let lines = graph::thick_surface_to_lines(ts);
-    match lines_intersection(&lines) {
-        Some(_) => {
-            revert_changes(&mut ts.layers[OUTER], &outer_changes);
-            revert_changes(&mut ts.layers[INNER], &inner_changes);
-        }
-        None => {
-            let coin_flip = rng.gen_range(0.0, 1.0);
-            if probability(energy_state, energy_neighbor, temperature) < coin_flip {
-                revert_changes(&mut ts.layers[OUTER], &outer_changes);
-                revert_changes(&mut ts.layers[INNER], &inner_changes);
-            }
-        }
-    }
+    intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
+    node_addition_effects(ts, 0.01);
 }

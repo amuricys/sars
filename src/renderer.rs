@@ -9,7 +9,8 @@ use simulated_annealing;
 use graph;
 
 pub struct Renderer {
-    gl: GlGraphics, // OpenGL drawing backend.
+    gl: GlGraphics,
+    // OpenGL drawing backend.
     rotation: f64,  // Rotation for the square.
 }
 
@@ -33,7 +34,7 @@ impl Renderer {
                 .trans(-0.0, -0.0);
 
             for (x1, y1, x2, y2) in lines {
-                line_from_to(WHITE, 0.5, [x1  * args.window_size[0] / 2.0, y1 * (- args.window_size[0] / 2.0)], [x2  * args.window_size[0] / 2.0,y2* (- args.window_size[0] / 2.0)], transform, gl);
+                line_from_to(WHITE, 0.5, [x1 * args.window_size[0] / 2.0, y1 * (-args.window_size[0] / 2.0)], [x2 * args.window_size[0] / 2.0, y2 * (-args.window_size[0] / 2.0)], transform, gl);
             }
         });
     }
@@ -44,15 +45,15 @@ impl Renderer {
     }
 }
 
-pub fn setup_optimization_and_loop(ts: &mut ThickSurface, 
-    rng: &mut rand::rngs::ThreadRng,
-    window: &mut Window,
-    renderer: &mut Renderer,
-    initial_temperature: f64,
-    compression_factor: f64,
-    how_smooth: usize) {
+pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
+                                   rng: &mut rand::rngs::ThreadRng,
+                                   window: &mut Window,
+                                   renderer: &mut Renderer,
+                                   initial_temperature: f64,
+                                   compression_factor: f64,
+                                   how_smooth: usize) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
-    
+
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
         let mut lines = Vec::new();
@@ -74,8 +75,24 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
         if let Some(args) = e.update_args() {
             renderer.update(&args);
         }
-        
+
         simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, rng);
+    }
+}
+
+pub fn render_line_list(lines: &Vec<(f64, f64, f64, f64)>,
+                        window: &mut Window,
+                        renderer: &mut Renderer) {
+
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(window) {
+        if let Some(args) = e.render_args() {
+            renderer.render(&args, &lines);
+        }
+
+        if let Some(args) = e.update_args() {
+            renderer.update(&args);
+        }
     }
 }
 
@@ -92,7 +109,7 @@ pub fn setup_renderer() -> (Renderer, Window) {
     // Create a new game and run it.
     let app = Renderer {
         gl: GlGraphics::new(opengl),
-        rotation: 0.0
+        rotation: 0.0,
     };
     (app, window)
 }
