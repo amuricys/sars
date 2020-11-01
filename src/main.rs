@@ -11,6 +11,15 @@ extern crate opengl_graphics;
 extern crate piston;
 extern crate rand;
 extern crate float_cmp;
+extern crate toml;
+
+struct Params {
+    initial_thickness: f64,
+    initial_radius: f64,
+    initial_num_points: i64,
+    initial_temperature: f64,
+    compression_factor: f64,
+}
 
 fn main() {
     /* Parameter setting TODO: Move to some config file that is read on startup */

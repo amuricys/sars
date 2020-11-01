@@ -88,5 +88,5 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    node_addition_effects(ts, 0.01);
+    // node_addition_effects(ts, 0.01);
 }
