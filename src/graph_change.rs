@@ -125,33 +125,6 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
     ret
 }
 
-/*
-void addNode2(Graph::Surface *belonging, Graph::Node *a, Graph::Node *b, double bothCorrsDist) {
-        auto neighborlyStatus = assertNeighbors(a, b);
-
-        auto nodeToBeCommitted = new Graph::Node();
-        nodeToBeCommitted->coords[Graph::X] = (a->coords[Graph::X] + b->coords[Graph::X]) / 2;
-        nodeToBeCommitted->coords[Graph::Y] = (a->coords[Graph::Y] + b->coords[Graph::Y]) / 2;
-        nodeToBeCommitted->to = neighborlyStatus == 1 ? a : b;
-        nodeToBeCommitted->from = neighborlyStatus == 1 ? b : a;
-        Correspondent c = getCorrespondents(nodeToBeCommitted->coords[Graph::X],
-                                            nodeToBeCommitted->coords[Graph::Y], a, b, bothCorrsDist);
-
-        if (c.commonCorr != nullptr) {
-            mergeCorrespondencesIntoNewNode(nodeToBeCommitted, c.commonCorr);
-        } else {
-            correspondNodeToNodes(nodeToBeCommitted, c.corrs);
-        }
-
-        belonging->nodes.push_back(nodeToBeCommitted);
-
-        a->to = neighborlyStatus == 1 ? a->to : nodeToBeCommitted;
-        a->from = neighborlyStatus == 1 ? nodeToBeCommitted : a->from;
-
-        b->to = neighborlyStatus == 0 ? b->to : nodeToBeCommitted;
-        b->from = neighborlyStatus == 0 ? nodeToBeCommitted : b->from;
-    }
-*/
 #[derive(Debug, PartialEq)]
 enum NeighborlyStatus {
     FirstToSecond,
@@ -169,14 +142,19 @@ fn neighborly_status(g: &Graph, id1: usize, id2: usize) -> NeighborlyStatus {
     }
 }
 
-fn lookup_id(g: &Graph) -> usize {
+fn lookup_node_id(g: &Graph) -> usize {
     /* Graph nodes should be Option(Node)s */
-    g.nodes.len() - 1
+    g.nodes.len()
+}
+
+fn lookup_edge_id(g: &Graph) -> usize {
+    /* Graph edges should be Option(Edge)s */
+    g.edges.len()
 }
 
 fn add_node_(g: &mut Graph, left_id: usize, right_id: usize){
-    let new_node_id = lookup_id(&g);
-    let new_edge_id = g.edges.len() - 1;
+    let new_node_id = lookup_node_id(&g);
+    let new_edge_id = lookup_edge_id(&g);
     let new_node = Node {
         id: new_node_id,
         x: (g.nodes[left_id].x + g.nodes[right_id].x) / 2.0,
@@ -191,6 +169,7 @@ fn add_node_(g: &mut Graph, left_id: usize, right_id: usize){
         target: g.nodes[right_id].id
     };
     g.edges[g.nodes[left_id].out].target = new_node_id;
+    g.nodes[right_id].inc = new_edge_id;
     g.nodes.push(new_node);
     g.edges.push(new_edge);
 }

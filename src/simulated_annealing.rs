@@ -67,8 +67,14 @@ fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
         None => {}
         Some((id1, id2)) => {
             match add_node(&mut ts.layers[OUTER], id1, id2) {
-                Ok(_) => println!("heyyy!"),
-                Err(err) => println!("{}", err)
+                Ok(_) => println!("adding between {} and {}", id1, id2),
+                Err(_) => println!("{} (nghbs; from {} to {}) and {} (nghbs; from {} to {})",
+                                   id1,
+                                   ts.layers[OUTER].nodes[id1].next(&ts.layers[OUTER]).id,
+                                   ts.layers[OUTER].nodes[id1].prev(&ts.layers[OUTER]).id,
+                                   id2,
+                                   ts.layers[OUTER].nodes[id2].next(&ts.layers[OUTER]).id,
+                                   ts.layers[OUTER].nodes[id2].prev(&ts.layers[OUTER]).id)
             }
         }
     }
