@@ -7,8 +7,13 @@ use vector_2d_helpers::{norm};
 
 pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
     let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
+    let def_acrossness = Acrossness {
+        mid: 0,
+        left: None,
+        right: None
+    };
 
-    to_return.nodes.push(Node{id: 0, x: center_x + radius, y: center_y as f64, inc: num_points-1, out: 0, across: HashSet::new()});
+    to_return.nodes.push(Node{id: 0, x: center_x + radius, y: center_y as f64, inc: num_points-1, out: 0, acrossness: def_acrossness});
     for i in 1..num_points {
         let new_edge = EdgeSameSurface{source: i-1, target: i, id: i-1};
         to_return.edges.push(new_edge);
@@ -18,7 +23,8 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
             y: center_y as f64 + (i as f64 * (2.0 * PI) / num_points as f64).sin() * radius,
             inc: i-1,
             out: i,
-            across: HashSet::new()};
+            acrossness: def_acrossness
+        };
         to_return.nodes.push(new_node);
     }
     let new_edge = EdgeSameSurface{source: num_points - 1, target: 0, id: num_points - 1};
@@ -29,8 +35,8 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
 
 fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
     for i in 0..outer.nodes.len() {
-        outer.nodes[i].across.insert(i);
-        inner.nodes[i].across.insert(i);
+        outer.nodes[i].acrossness.mid = i;
+        inner.nodes[i].acrossness.mid = i;
     }
 }
 
@@ -109,7 +115,7 @@ mod tests {
 
         let test_circ = thick_surface(1.0, 0.3, size_of_test_circ);
         for n in &test_circ.layers[OUTER].nodes {
-            assert!(n.across.contains(&n.id))
+            assert_eq!(n.across_mid, n.id)
         }
     }
 

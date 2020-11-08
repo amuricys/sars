@@ -3,6 +3,13 @@ use std::collections::HashSet;
 pub type NodeIndex = usize;
 pub type EdgeIndex = usize;
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct Acrossness{
+    pub mid: NodeIndex,
+    pub left: Option<NodeIndex>,
+    pub right: Option<NodeIndex>
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
     pub id: NodeIndex,
@@ -10,7 +17,7 @@ pub struct Node {
     pub y: f64,
     pub inc: EdgeIndex,
     pub out: EdgeIndex,
-    pub across: HashSet<NodeIndex>, // TODO: Inter-layer stuff is hard
+    pub acrossness: Acrossness, // Simple experimentation with prioritizing the push of across nodes. let's see
 }
 
 impl Node {
@@ -30,7 +37,6 @@ pub struct NodeChange {
     pub cur_y: f64,
     pub new_x: f64,
     pub new_y: f64,
-
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

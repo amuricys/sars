@@ -19,6 +19,7 @@ struct Params {
     initial_num_points: usize,
     initial_temperature: f64,
     compression_factor: f64,
+    softness_factor: f64, // <- how much should closeness of nodes in different surfaces impact pushes?
     how_smooth: usize
 }
 
@@ -30,6 +31,7 @@ fn toml_table_to_params(table: toml::Value) -> Params {
                 initial_num_points: m.get("initial_num_points").unwrap().as_integer().unwrap() as usize,
                 initial_temperature: m.get("initial_temperature").unwrap().as_float().unwrap(),
                 compression_factor: m.get("compression_factor").unwrap().as_float().unwrap(),
+                softness_factor: m.get("softness_factor").unwrap().as_float().unwrap(),
                 how_smooth: m.get("how_smooth").unwrap().as_integer().unwrap() as usize,
             },
         _ => panic!("No key-value table found in parameters.toml")
