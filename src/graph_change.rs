@@ -152,12 +152,20 @@ fn lookup_edge_id(g: &Graph) -> usize {
     g.edges.len()
 }
 
-fn determine_acrossness(g: &Graph, left_id: usize, right_id: usize) -> Acrossness {
-    Acrossness {
-        mid: 0, // TODO this will break so gddamn hard haha
+fn determine_acrossness(g: &Graph, left_id: usize, right_id: usize) -> (Acrossness, Acrossness, Acrossness) {
+    (Acrossness {
+        mid: None, // TODO this will break so gddamn hard haha
         left: None,
         right: None
-    }
+    }, Acrossness {
+        mid: None, // TODO this will break so gddamn hard haha
+        left: None,
+        right: None
+    }, Acrossness {
+        mid: None, // TODO this will break so gddamn hard haha
+        left: None,
+        right: None
+    })
 }
 
 fn add_node_(g: &mut Graph, left_id: usize, right_id: usize){
@@ -169,7 +177,7 @@ fn add_node_(g: &mut Graph, left_id: usize, right_id: usize){
         y: (g.nodes[left_id].y + g.nodes[right_id].y) / 2.0,
         inc: g.edges[g.nodes[left_id].out].id,
         out: new_edge_id,
-        acrossness: determine_acrossness(&g, left_id, right_id)
+        acrossness: determine_acrossness(&g, left_id, right_id).1
     };
     let new_edge = EdgeSameSurface {
         id: new_edge_id,
@@ -199,7 +207,7 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
     for c in other_graph_changes {
         /* TODO: Compression, look at across, better understand. LOL it's breaking because we add nodes to outside. LOOK AT ACROSS */
         let cur_node = &other_graph.nodes[c.id];
-        let node_across = &this_graph.nodes[other_graph.nodes[c.id].acrossness.mid];
+        let node_across = &this_graph.nodes[other_graph.nodes[c.id].acrossness.mid.unwrap()];
         let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
 
         let dist= distance_between_nodes(cur_node, node_across);

@@ -5,7 +5,7 @@ pub type EdgeIndex = usize;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Acrossness{
-    pub mid: NodeIndex,
+    pub mid: Option<NodeIndex>,
     pub left: Option<NodeIndex>,
     pub right: Option<NodeIndex>
 }

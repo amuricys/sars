@@ -8,7 +8,7 @@ use vector_2d_helpers::{norm};
 pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
     let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
     let def_acrossness = Acrossness {
-        mid: 0,
+        mid: None,
         left: None,
         right: None
     };
@@ -35,8 +35,8 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
 
 fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
     for i in 0..outer.nodes.len() {
-        outer.nodes[i].acrossness.mid = i;
-        inner.nodes[i].acrossness.mid = i;
+        outer.nodes[i].acrossness.mid = Some(i);
+        inner.nodes[i].acrossness.mid = Some(i);
     }
 }
 
