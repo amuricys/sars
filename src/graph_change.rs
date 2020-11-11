@@ -1,6 +1,7 @@
 use types::*;
 use rand::Rng;
-use vector_2d_helpers::{direction_vector, distance_between_nodes};
+use vector_2d_helpers::{direction_vector};
+use graph::{distance_between_nodes};
 use graph_change::NeighborlyStatus::{FirstToSecond, SecondToFirst, NotNeighbors};
 use std::collections::HashSet;
 
@@ -155,45 +156,49 @@ fn lookup_edge_id(g: &Graph) -> usize {
 fn determine_acrossness(g: &Graph, left_id: usize, right_id: usize) -> (Acrossness, Acrossness, Acrossness) {
     (Acrossness {
         mid: None, // TODO this will break so gddamn hard haha
-        left: None,
-        right: None
+        prev: None,
+        next: None
     }, Acrossness {
         mid: None, // TODO this will break so gddamn hard haha
-        left: None,
-        right: None
+        prev: None,
+        next: None
     }, Acrossness {
         mid: None, // TODO this will break so gddamn hard haha
-        left: None,
-        right: None
+        prev: None,
+        next: None
     })
 }
 
-fn add_node_(g: &mut Graph, left_id: usize, right_id: usize){
+fn add_node_(g: &mut Graph, nodeness: Nodeness){
     let new_node_id = lookup_node_id(&g);
     let new_edge_id = lookup_edge_id(&g);
+    let prev_id = nodeness.id_prev;
+    let next_id = nodeness.id_next;
     let new_node = Node {
         id: new_node_id,
-        x: (g.nodes[left_id].x + g.nodes[right_id].x) / 2.0,
-        y: (g.nodes[left_id].y + g.nodes[right_id].y) / 2.0,
-        inc: g.edges[g.nodes[left_id].out].id,
+        x: (g.nodes[prev_id].x + g.nodes[next_id].x) / 2.0,
+        y: (g.nodes[prev_id].y + g.nodes[next_id].y) / 2.0,
+        inc: g.edges[g.nodes[prev_id].out].id,
         out: new_edge_id,
-        acrossness: determine_acrossness(&g, left_id, right_id).1
+        acrossness: nodeness.mid_acrossness
     };
     let new_edge = EdgeSameSurface {
         id: new_edge_id,
         source: new_node_id,
-        target: g.nodes[right_id].id
+        target: g.nodes[next_id].id
     };
-    g.edges[g.nodes[left_id].out].target = new_node_id;
-    g.nodes[right_id].inc = new_edge_id;
+    g.edges[g.nodes[prev_id].out].target = new_node_id;
+    g.nodes[next_id].inc = new_edge_id;
+    g.nodes[next_id].acrossness = nodeness.next_acrossness;
+    g.nodes[prev_id].acrossness = nodeness.prev_acrossness;
     g.nodes.push(new_node);
     g.edges.push(new_edge);
 }
 
-pub fn add_node(g: &mut Graph, id1: usize, id2: usize) -> Result<(), &str>{
-    match neighborly_status(g, id1, id2) {
-        FirstToSecond => Ok(add_node_(g, id1, id2)),
-        SecondToFirst => Ok(add_node_(g, id2, id1)),
+pub fn add_node(g: &mut Graph, nodeness: Nodeness) -> Result<(), &str>{
+    match neighborly_status(g, nodeness.id_prev, nodeness.id_next) {
+        FirstToSecond => Ok(add_node_(g, nodeness)),
+        SecondToFirst => Ok(add_node_(g, nodeness)),
         NotNeighbors => Err("Tried adding node between two non-neighbors")
     }
 }

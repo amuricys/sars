@@ -1,7 +1,7 @@
 use types::{ThickSurface, NodeChange, OUTER, INNER};
 use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node};
 use graph;
-use vector_2d_helpers::{lines_intersection, distance_between_nodes};
+use vector_2d_helpers::{lines_intersection};
 use rand::Rng;
 use piston::input::keyboard::Key::Out;
 
@@ -59,22 +59,20 @@ fn intersection_effects(ts: &mut ThickSurface,
 fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
     let mut node_to_add = None;
     for n in &ts.layers[OUTER].nodes {
-        if distance_between_nodes(n, n.next(&ts.layers[OUTER])) > addition_threshold {
-            node_to_add = Some((n.id, n.next(&ts.layers[OUTER]).id));
-        }
+        node_to_add = graph::node_to_add(&ts.layers[OUTER], n, n.next(&ts.layers[OUTER]), addition_threshold)
     }
     match node_to_add {
         None => {}
-        Some((id1, id2)) => {
-            match add_node(&mut ts.layers[OUTER], id1, id2) {
-                Ok(_) => println!("adding between {} and {}", id1, id2),
+        Some(nodeness) => {
+            match add_node(&mut ts.layers[OUTER], nodeness) {
+                Ok(_) => println!("adding between {} and {}", nodeness.id_prev, nodeness.id_next),
                 Err(_) => println!("{} (nghbs; from {} to {}) and {} (nghbs; from {} to {})",
-                                   id1,
-                                   ts.layers[OUTER].nodes[id1].next(&ts.layers[OUTER]).id,
-                                   ts.layers[OUTER].nodes[id1].prev(&ts.layers[OUTER]).id,
-                                   id2,
-                                   ts.layers[OUTER].nodes[id2].next(&ts.layers[OUTER]).id,
-                                   ts.layers[OUTER].nodes[id2].prev(&ts.layers[OUTER]).id)
+                                   nodeness.id_prev,
+                                   ts.layers[OUTER].nodes[nodeness.id_prev].next(&ts.layers[OUTER]).id,
+                                   ts.layers[OUTER].nodes[nodeness.id_prev].prev(&ts.layers[OUTER]).id,
+                                   nodeness.id_next,
+                                   ts.layers[OUTER].nodes[nodeness.id_next].next(&ts.layers[OUTER]).id,
+                                   ts.layers[OUTER].nodes[nodeness.id_next].prev(&ts.layers[OUTER]).id)
             }
         }
     }
@@ -94,5 +92,5 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    // node_addition_effects(ts, 0.01);
+    node_addition_effects(ts, 0.01);
 }

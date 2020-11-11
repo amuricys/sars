@@ -9,8 +9,8 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
     let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
     let def_acrossness = Acrossness {
         mid: None,
-        left: None,
-        right: None
+        prev: None,
+        next: None
     };
 
     to_return.nodes.push(Node{id: 0, x: center_x + radius, y: center_y as f64, inc: num_points-1, out: 0, acrossness: def_acrossness});
@@ -88,6 +88,39 @@ pub fn thick_surface_to_lines(ts: &ThickSurface) -> Vec<(f64,f64,f64,f64)> {
     let mut inner_lines = graph_to_lines(&ts.layers[INNER]);
     outer_lines.append(&mut inner_lines);
     outer_lines
+}
+
+pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
+    norm(n1.x - n2.x, n1.y - n2.y)
+}
+
+pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<Nodeness> {
+    if distance_between_nodes(prev, next) > addition_threshold {
+        match (prev.acrossness, next.acrossness) {
+            (Acrossness {mid: Some(_), prev: Some(_), next: Some(_)}, _) => None, // Cant add when a neighbor is overloaded
+            (_, Acrossness {mid: Some(_), prev: Some(_), next: Some(_)}) => None, // Cant add when a neighbor is overloaded
+            _ => {
+                let mid_acrossness = match (prev.acrossness, next.acrossness) {
+                    (Acrossness {mid: Some(r), prev: None, next: None}, Acrossness {mid: Some(l), prev: None, next: None}) => Acrossness {mid: None, prev: Some(r), next: Some(l)},
+                    (Acrossness {mid: _, prev: _, next: Some(r)}, _) => Acrossness {mid: Some(r), prev: None, next: None},
+                    (_, Acrossness {mid: _, prev: _, next: Some(l)}) => Acrossness {mid: Some(l), prev: None, next: None},
+                    (_, _) => {
+                        println!("Prev acrossness:\n{:?}\n\n, Next acrossness:\n{:?}\n\n", prev.acrossness, next.acrossness);
+                        panic!("")
+                    }
+                };
+                let prev_acrossness = match prev.acrossness {
+                    Acrossness {mid: Some(x), prev: None, next: Some(_)} => Acrossness {mid: Some(x), prev: None, next: None},
+                    y => y
+                };
+                let next_acrossness = match next.acrossness {
+                    Acrossness {mid: Some(x), prev: Some(_), next: None} => Acrossness {mid: Some(x), prev: None, next: None},
+                    y => y
+                };
+                Some(Nodeness{id_prev: prev.id, id_next: next.id, mid_acrossness, prev_acrossness, next_acrossness})
+            }
+        }
+    } else { None }
 }
 
 #[cfg(test)]

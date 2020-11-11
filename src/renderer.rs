@@ -8,18 +8,31 @@ use types::{ThickSurface, OUTER, INNER};
 use simulated_annealing;
 use graph;
 
+type Color = [f32; 4];
+const BLACK: Color = [0.0, 0.0, 0.0, 0.0];
+const WHITE: Color = [1.0, 1.0, 1.0, 1.0];
+const PURPLE: Color = [0.8, 0.0, 0.8, 1.0];
+const PINK: Color = [1.0, 0.4, 1.0, 1.0];
+const GREEN: Color = [0.2, 1.0, 0.2, 1.0];
+
+
 pub struct Renderer {
     gl: GlGraphics,
     // OpenGL drawing backend.
     rotation: f64,  // Rotation for the square.
 }
 
+#[derive (Copy, Clone, PartialOrd, PartialEq, Debug)]
+pub struct Line {
+    points: (f64, f64, f64, f64),
+    color: Color
+}
+
 impl Renderer {
-    fn render(&mut self, args: &RenderArgs, lines: &Vec<(f64, f64, f64, f64)>) {
+    fn render(&mut self, args: &RenderArgs, lines: &Vec<Line>) {
         use graphics::*;
 
-        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
-        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+
         let rotation = self.rotation;
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
 
@@ -33,8 +46,10 @@ impl Renderer {
                 .rot_rad(rotation)
                 .trans(-0.0, -0.0);
 
-            for (x1, y1, x2, y2) in lines {
-                line_from_to(WHITE, 0.5, [x1 * args.window_size[0] / 2.0, y1 * (-args.window_size[0] / 2.0)], [x2 * args.window_size[0] / 2.0, y2 * (-args.window_size[0] / 2.0)], transform, gl);
+            for l in lines {
+                let (x1, y1, x2, y2) = l.points;
+                let col = l.color;
+                line_from_to(col, 0.5, [x1 * args.window_size[0] / 2.0, y1 * (-args.window_size[0] / 2.0)], [x2 * args.window_size[0] / 2.0, y2 * (-args.window_size[0] / 2.0)], transform, gl);
             }
         });
     }
@@ -59,12 +74,23 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
         let mut lines = Vec::new();
         for i in 0..ts.layers.len() {
             let g = &ts.layers[i];
-            for edge in &g.edges {
-                lines.push((
-                    g.nodes[edge.source].x,
-                    g.nodes[edge.source].y,
-                    g.nodes[edge.target].x,
-                    g.nodes[edge.target].y));
+            for node in &g.nodes {
+                lines.push(Line {
+                    points: (node.x, node.y,
+                             node.next(g).x, node.next(g).y),
+                    color: PINK,
+                });
+                if i == 0 {
+                    if let Some(x) = node.acrossness.mid {
+                        lines.push(Line { points: (node.x, node.y, ts.layers[1].nodes[x].x, ts.layers[1].nodes[x].y), color: PURPLE })
+                    }
+                    if let Some(x) = node.acrossness.prev {
+                        lines.push(Line { points: (node.x, node.y, ts.layers[1].nodes[x].x, ts.layers[1].nodes[x].y), color: GREEN })
+                    }
+                    if let Some(x) = node.acrossness.next {
+                        lines.push(Line { points: (node.x, node.y, ts.layers[1].nodes[x].x, ts.layers[1].nodes[x].y), color: GREEN })
+                    }
+                }
             }
         }
 
@@ -80,7 +106,7 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
     }
 }
 
-pub fn render_line_list(lines: &Vec<(f64, f64, f64, f64)>,
+pub fn render_line_list(lines: &Vec<Line>,
                         window: &mut Window,
                         renderer: &mut Renderer) {
 

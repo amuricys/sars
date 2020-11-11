@@ -6,8 +6,17 @@ pub type EdgeIndex = usize;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Acrossness{
     pub mid: Option<NodeIndex>,
-    pub left: Option<NodeIndex>,
-    pub right: Option<NodeIndex>
+    pub prev: Option<NodeIndex>,
+    pub next: Option<NodeIndex>
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Nodeness {
+    pub id_prev: usize,
+    pub id_next: usize,
+    pub mid_acrossness: Acrossness,
+    pub prev_acrossness: Acrossness,
+    pub next_acrossness: Acrossness
 }
 
 #[derive(Debug, Clone, PartialEq)]

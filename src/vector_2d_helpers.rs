@@ -1,15 +1,9 @@
-use types::{Node};
-
 pub fn norm(x: f64, y: f64) -> f64 {
     (x * x + y * y).sqrt()
 }
 
 pub fn normed_vector(x: f64, y: f64) -> (f64, f64) {
     (x * (1.0 / norm(x, y)), y * (1.0 / norm(x, y)))
-}
-
-pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
-    norm(n1.x - n2.x, n1.y - n2.y)
 }
 
 pub fn direction_vector(middle_x: f64, middle_y: f64, clkwise_x: f64, clkwise_y: f64, ctrclkwise_x: f64, ctrclkwise_y: f64) -> (f64, f64) {
