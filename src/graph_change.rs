@@ -153,22 +153,6 @@ fn lookup_edge_id(g: &Graph) -> usize {
     g.edges.len()
 }
 
-fn determine_acrossness(g: &Graph, left_id: usize, right_id: usize) -> (Acrossness, Acrossness, Acrossness) {
-    (Acrossness {
-        mid: None, // TODO this will break so gddamn hard haha
-        prev: None,
-        next: None
-    }, Acrossness {
-        mid: None, // TODO this will break so gddamn hard haha
-        prev: None,
-        next: None
-    }, Acrossness {
-        mid: None, // TODO this will break so gddamn hard haha
-        prev: None,
-        next: None
-    })
-}
-
 fn add_node_(g: &mut Graph, nodeness: Nodeness){
     let new_node_id = lookup_node_id(&g);
     let new_edge_id = lookup_edge_id(&g);
@@ -189,6 +173,7 @@ fn add_node_(g: &mut Graph, nodeness: Nodeness){
     };
     g.edges[g.nodes[prev_id].out].target = new_node_id;
     g.nodes[next_id].inc = new_edge_id;
+    // This has to change the graph across... duh
     g.nodes[next_id].acrossness = nodeness.next_acrossness;
     g.nodes[prev_id].acrossness = nodeness.prev_acrossness;
     g.nodes.push(new_node);
@@ -212,14 +197,41 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
     for c in other_graph_changes {
         /* TODO: Compression, look at across, better understand. LOL it's breaking because we add nodes to outside. LOOK AT ACROSS */
         let cur_node = &other_graph.nodes[c.id];
-        let node_across = &this_graph.nodes[other_graph.nodes[c.id].acrossness.mid.unwrap()];
-        let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
+        let mut nodes_across = Vec::new();
 
-        let dist= distance_between_nodes(cur_node, node_across);
-        let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
+        /* GOOOODDDDD THIS IS TERRIBLE */
+        if let Some(acr_id) = other_graph.nodes[c.id].acrossness.mid {
+            let node_across = &this_graph.nodes[acr_id];
+            let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
 
-        let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
-        ret.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
+            let dist= distance_between_nodes(cur_node, node_across);
+            let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
+
+            let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
+            nodes_across.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
+        }
+        if let Some(acr_id) = other_graph.nodes[c.id].acrossness.prev {
+            let node_across = &this_graph.nodes[acr_id];
+            let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
+
+            let dist= distance_between_nodes(cur_node, node_across);
+            let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
+
+            let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
+            nodes_across.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
+        }
+        if let Some(acr_id) = other_graph.nodes[c.id].acrossness.next {
+            let node_across = &this_graph.nodes[acr_id];
+            let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
+
+            let dist= distance_between_nodes(cur_node, node_across);
+            let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
+
+            let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
+            nodes_across.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
+        }
+        nodes_across = nodes_across.iter().map(|x| NodeChange {new_x: x.cur_x + ((x.new_x - x.cur_x) / nodes_across.len() as f64 ), ..*x} ).collect();
+        ret.append(&mut nodes_across);
     }
     ret
 }
