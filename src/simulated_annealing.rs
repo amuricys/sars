@@ -1,5 +1,5 @@
-use types::{ThickSurface, NodeChange, OUTER, INNER, Graph};
-use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node};
+use types::{ThickSurface, NodeChange, OUTER, INNER};
+use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node_};
 use graph;
 use vector_2d_helpers::{lines_intersection};
 use rand::Rng;
@@ -56,26 +56,19 @@ fn intersection_effects(ts: &mut ThickSurface,
     }
 }
 
-fn node_addition_effects(g: &mut Graph, addition_threshold: f64) {
+fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
     let mut nodes_to_add = Vec::new();
-    for n in &g.nodes {
-        let optional_node = graph::node_to_add(&g, n, n.next(&g), addition_threshold);
+    let graph_to_which_add = &ts.layers[OUTER];
+    for n in &graph_to_which_add.nodes {
+        let optional_node = graph::node_to_add(&graph_to_which_add, n, n.next(&graph_to_which_add), addition_threshold);
         match optional_node{
             Some(nodeness) => nodes_to_add.push(nodeness),
             None => {}
         }
     }
     for nodeness in nodes_to_add {
-        match add_node(g, nodeness) {
-            Ok(_) => println!("adding between {} and {}", nodeness.id_prev, nodeness.id_next),
-            Err(_) => println!("{} (nghbs; from {} to {}) and {} (nghbs; from {} to {})",
-                               nodeness.id_prev,
-                               g.nodes[nodeness.id_prev].next(g).id,
-                               g.nodes[nodeness.id_prev].prev(g).id,
-                               nodeness.id_next,
-                               g.nodes[nodeness.id_next].next(g).id,
-                               g.nodes[nodeness.id_next].prev(g).id)
-        }
+        add_node_(ts, nodeness);
+        println!("adding between {} and {}", nodeness.prev_id, nodeness.next_id);
     }
 }
 
@@ -94,5 +87,5 @@ pub fn step(ts: &mut ThickSurface,
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
     // node_addition_effects(&mut ts.layers[OUTER], 0.05);
-    node_addition_effects(&mut ts.layers[INNER], 0.05);
+    node_addition_effects(ts, 0.05);
 }

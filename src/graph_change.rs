@@ -3,7 +3,7 @@ use rand::Rng;
 use vector_2d_helpers::{direction_vector};
 use graph::{distance_between_nodes};
 use graph_change::NeighborlyStatus::{FirstToSecond, SecondToFirst, NotNeighbors};
-use std::collections::HashSet;
+use graphics::modular_index::next;
 
 pub fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
@@ -153,40 +153,48 @@ fn lookup_edge_id(g: &Graph) -> usize {
     g.edges.len()
 }
 
-fn add_node_(g: &mut Graph, nodeness: Nodeness){
-    let new_node_id = lookup_node_id(&g);
-    let new_edge_id = lookup_edge_id(&g);
-    let prev_id = nodeness.id_prev;
-    let next_id = nodeness.id_next;
+pub fn add_node_(ts: &mut ThickSurface, layer_added: usize, layer_across: usize, nodeness: NodeAddition){
+    let new_node_id = lookup_node_id(&ts.layers[layer_added]);
+    let new_edge_id = lookup_edge_id(&ts.layers[layer_added]);
+    let prev_id = nodeness.prev_id;
+    let next_id = nodeness.next_id;
     let new_node = Node {
         id: new_node_id,
-        x: (g.nodes[prev_id].x + g.nodes[next_id].x) / 2.0,
-        y: (g.nodes[prev_id].y + g.nodes[next_id].y) / 2.0,
-        inc: g.edges[g.nodes[prev_id].out].id,
+        x: (ts.layers[layer_added].nodes[prev_id].x + ts.layers[layer_added].nodes[next_id].x) / 2.0,
+        y: (ts.layers[layer_added].nodes[prev_id].y + ts.layers[layer_added].nodes[next_id].y) / 2.0,
+        inc: ts.layers[layer_added].edges[ts.layers[layer_added].nodes[prev_id].out].id,
         out: new_edge_id,
         acrossness: nodeness.mid_acrossness
     };
     let new_edge = EdgeSameSurface {
         id: new_edge_id,
         source: new_node_id,
-        target: g.nodes[next_id].id
+        target: ts.layers[layer_added].nodes[next_id].id
     };
-    g.edges[g.nodes[prev_id].out].target = new_node_id;
-    g.nodes[next_id].inc = new_edge_id;
-    // This has to change the graph across... duh
-    g.nodes[next_id].acrossness = nodeness.next_acrossness;
-    g.nodes[prev_id].acrossness = nodeness.prev_acrossness;
-    g.nodes.push(new_node);
-    g.edges.push(new_edge);
+    let out_index = ts.layers[layer_added].nodes[prev_id].out;
+    ts.layers[layer_added].edges[out_index].target = new_node_id;
+    ts.layers[layer_added].nodes[next_id].inc = new_edge_id;
+    // Changes to added layer acrossness
+    ts.layers[layer_added].nodes[next_id].acrossness = nodeness.next_acrossness;
+    ts.layers[layer_added].nodes[prev_id].acrossness = nodeness.prev_acrossness;
+    // Changes to across layer acrossness
+    match nodeness.next_acrossness.mid {
+        Some(x) => ts.layers[layer_across].nodes[x].acrossness.mid = Some(next_id),
+        None => 
+    }
+    ts.layers[layer_across].nodes[next_id].acrossness = nodeness.next_acrossness;
+    ts.layers[layer_across].nodes[next_id].acrossness = nodeness.next_acrossness;
+    ts.layers[layer_added].nodes.push(new_node);
+    ts.layers[layer_added].edges.push(new_edge);
 }
 
-pub fn add_node(g: &mut Graph, nodeness: Nodeness) -> Result<(), &str>{
-    match neighborly_status(g, nodeness.id_prev, nodeness.id_next) {
-        FirstToSecond => Ok(add_node_(g, nodeness)),
-        SecondToFirst => Ok(add_node_(g, nodeness)),
-        NotNeighbors => Err("Tried adding node between two non-neighbors")
-    }
-}
+// pub fn add_node(g: &mut Graph, across_g: &mut Graph, nodeness: NodeAddition) -> Result<(), &str>{
+//     match neighborly_status(g, nodeness.prev_id, nodeness.next_id) {
+//         FirstToSecond => Ok(add_node_(g, across_g, nodeness)),
+//         SecondToFirst => Ok(add_node_(g, across_g, nodeness)),
+//         NotNeighbors => Err("Tried adding node between two non-neighbors")
+//     }
+// }
 
 /* TODO (but this is actually far from a next step):
    This way of doing this is actually probably bad, because it doesn't take simultaneous changes into account.

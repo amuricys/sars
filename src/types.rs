@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 pub type NodeIndex = usize;
 pub type EdgeIndex = usize;
 
@@ -11,9 +9,9 @@ pub struct Acrossness{
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Nodeness {
-    pub id_prev: usize,
-    pub id_next: usize,
+pub struct NodeAddition {
+    pub prev_id: usize,
+    pub next_id: usize,
     pub mid_acrossness: Acrossness,
     pub prev_acrossness: Acrossness,
     pub next_acrossness: Acrossness

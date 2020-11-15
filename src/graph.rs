@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::f64::consts::PI;
 
 use types::*;
@@ -94,8 +93,9 @@ pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
     norm(n1.x - n2.x, n1.y - n2.y)
 }
 
-pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<Nodeness> {
-    if distance_between_nodes(prev, next) > addition_threshold {
+pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
+    if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
+       distance_between_nodes(prev, next) > addition_threshold {
         match (prev.acrossness, next.acrossness) {
             (Acrossness {mid: Some(_), prev: Some(_), next: Some(_)}, _) => None, // Cant add when a neighbor is overloaded
             (_, Acrossness {mid: Some(_), prev: Some(_), next: Some(_)}) => None, // Cant add when a neighbor is overloaded
@@ -117,7 +117,7 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
                     Acrossness {mid: Some(x), prev: Some(_), next: None} => Acrossness {mid: Some(x), prev: None, next: None},
                     y => y
                 };
-                Some(Nodeness{id_prev: prev.id, id_next: next.id, mid_acrossness, prev_acrossness, next_acrossness})
+                Some(NodeAddition { prev_id: prev.id, next_id: next.id, mid_acrossness, prev_acrossness, next_acrossness})
             }
         }
     } else { None }
