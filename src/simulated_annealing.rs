@@ -1,11 +1,24 @@
 use types::{ThickSurface, NodeChange, OUTER, INNER};
-use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node_};
+use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node_, fix_neighbors};
 use graph;
 use vector_2d_helpers::{lines_intersection};
 use rand::Rng;
 use piston::input::keyboard::Key::Out;
 
 const SOME_HUGE_FUCKIN_VALUE: f64 = 100_000_000.0;
+
+pub fn debug_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f64, which_node: usize, (x_change, y_change): (f64, f64)) -> (Vec<NodeChange>, Vec<NodeChange>) {
+    let outer_change = NodeChange {
+        id: which_node,
+        cur_x: ts.layers[OUTER].nodes[which_node].x,
+        cur_y: ts.layers[OUTER].nodes[which_node].y,
+        new_x: ts.layers[OUTER].nodes[which_node].x + x_change,
+        new_y: ts.layers[OUTER].nodes[which_node].y + y_change,
+    };
+    let smoothed_changes = smooth_change_out2(&ts.layers[OUTER], outer_change.clone(), how_smooth);
+    let smoothed_inner_changes = changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &smoothed_changes, compression_factor);
+    (smoothed_changes, smoothed_inner_changes)
+}
 
 fn neighbor_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f64, rng: &mut rand::rngs::ThreadRng) -> (Vec<NodeChange>, Vec<NodeChange>) {
     let outer_change = random_change(&ts.layers[OUTER], (-0.2, 0.2), rng);
@@ -67,8 +80,34 @@ fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
         }
     }
     for nodeness in nodes_to_add {
-        add_node_(ts, nodeness);
+        add_node_(ts, OUTER, nodeness);
+        fix_neighbors(ts, INNER, nodeness);
         println!("adding between {} and {}", nodeness.prev_id, nodeness.next_id);
+    }
+}
+
+pub fn check_accrossnesses(ts: &ThickSurface) {
+    let mut c = 0;
+    for g_id in 0..ts.layers.len() {
+        for n in &ts.layers[g_id].nodes {
+            let across = if g_id == 0 { 1 } else { 0 };
+            match n.acrossness.mid {
+                Some(x) => {
+                    if ts.layers[across].nodes[x].acrossness.mid.unwrap() != n.id {
+                        println!("node {} in {} layer has a mid across {}, node {} in {} layer has a mid across {}",
+                        n.id,
+                        if g_id == 0 { "OUTER" } else { "INNER" },
+                        x,
+                        x,
+                        if across == 0 { "OUTER" } else { "INNER" },
+                        ts.layers[across].nodes[x].acrossness.mid.unwrap());
+                        c += 1;
+                        if c >= 3 { panic!("Enough") }
+                    }
+                }
+                None => { }
+            }
+        }
     }
 }
 
@@ -86,6 +125,6 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    // node_addition_effects(&mut ts.layers[OUTER], 0.05);
-    node_addition_effects(ts, 0.05);
+    node_addition_effects(ts, 0.08);
+    check_accrossnesses(ts);
 }

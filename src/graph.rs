@@ -3,6 +3,35 @@ use std::f64::consts::PI;
 use types::*;
 use vector_2d_helpers::{norm};
 
+pub fn bleh_graph(num_points: usize, is_outer: bool) -> Graph {
+    let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
+    let def_acrossness = Acrossness {
+        mid: None,
+        prev: None,
+        next: None
+    };
+    for i in 0..num_points-2 {
+        let new_edge = EdgeSameSurface{source: if i == 0 {999} else {i-1}, target: i, id: if i == 0 {999} else {i-1}};
+        to_return.edges.push(new_edge);
+
+        let new_node = Node {
+            id: i,
+            x: 1.0 - i as f64 / num_points as f64,
+            y: if is_outer {0.2} else {-0.2},
+            inc: if i == 0 {999} else {i-1},
+            out: i,
+            acrossness: def_acrossness};
+        to_return.nodes.push(new_node);
+    }
+    to_return.nodes.push(Node {
+        id: num_points-1,
+        x: -1.0,
+        y: if is_outer {0.2} else {-0.2},
+        inc: num_points-1,
+        out: 999,
+        acrossness: def_acrossness});
+    to_return
+}
 
 pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
     let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
@@ -39,7 +68,14 @@ fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
     }
 }
 
-pub fn thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
+pub fn debug_straight_surface(num_points: usize) -> ThickSurface {
+    let mut outer = bleh_graph(num_points, true);
+    let mut inner = bleh_graph(num_points, false);
+    establish_correspondences(&mut outer, &mut inner);
+    ThickSurface{layers: Vec::from([outer, inner]), edges: Vec::new()}
+}
+
+pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
     let mut outer = circular_graph(0.0, 0.0, radius, num_points);
     let mut inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
     establish_correspondences(&mut outer, &mut inner);
@@ -93,7 +129,13 @@ pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
     norm(n1.x - n2.x, n1.y - n2.y)
 }
 
+fn available_node_id(g: &Graph) -> usize {
+    /* Graph nodes should be Option(Node)s */
+    g.nodes.len()
+}
+
 pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
+    let new_node_id = available_node_id(g);
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
        distance_between_nodes(prev, next) > addition_threshold {
         match (prev.acrossness, next.acrossness) {
@@ -117,7 +159,7 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
                     Acrossness {mid: Some(x), prev: Some(_), next: None} => Acrossness {mid: Some(x), prev: None, next: None},
                     y => y
                 };
-                Some(NodeAddition { prev_id: prev.id, next_id: next.id, mid_acrossness, prev_acrossness, next_acrossness})
+                Some(NodeAddition {id: new_node_id, prev_id: prev.id, next_id: next.id, this_layer_mid_acr: mid_acrossness, this_layer_prev_acr: prev_acrossness, this_layer_next_acr: next_acrossness })
             }
         }
     } else { None }
@@ -126,6 +168,7 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simulated_annealing::debug_changes;
 
     #[test]
     fn we_go_around() {
@@ -146,9 +189,9 @@ mod tests {
         // TODO: This should be generated
         let size_of_test_circ = 4;
 
-        let test_circ = thick_surface(1.0, 0.3, size_of_test_circ);
+        let test_circ = circular_thick_surface(1.0, 0.3, size_of_test_circ);
         for n in &test_circ.layers[OUTER].nodes {
-            assert_eq!(n.across_mid, n.id)
+            assert_eq!(n.acrossness.mid.unwrap(), n.id)
         }
     }
 

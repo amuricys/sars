@@ -10,11 +10,12 @@ pub struct Acrossness{
 
 #[derive(Clone, Copy, Debug)]
 pub struct NodeAddition {
+    pub id: usize,
     pub prev_id: usize,
     pub next_id: usize,
-    pub mid_acrossness: Acrossness,
-    pub prev_acrossness: Acrossness,
-    pub next_acrossness: Acrossness
+    pub this_layer_mid_acr: Acrossness, // New node's acrossness
+    pub this_layer_prev_acr: Acrossness, // New node's prev's acrossness
+    pub this_layer_next_acr: Acrossness // New node's next's acrossness
 }
 
 #[derive(Debug, Clone, PartialEq)]

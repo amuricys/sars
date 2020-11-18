@@ -6,7 +6,9 @@ use piston::window::WindowSettings;
 
 use types::{ThickSurface, OUTER, INNER};
 use simulated_annealing;
+use graph_change;
 use graph;
+use piston::PressEvent;
 
 type Color = [f32; 4];
 const BLACK: Color = [0.0, 0.0, 0.0, 0.0];
@@ -32,7 +34,6 @@ impl Renderer {
     fn render(&mut self, args: &RenderArgs, lines: &Vec<Line>) {
         use graphics::*;
 
-
         let rotation = self.rotation;
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
 
@@ -49,7 +50,9 @@ impl Renderer {
             for l in lines {
                 let (x1, y1, x2, y2) = l.points;
                 let col = l.color;
-                line_from_to(col, 0.5, [x1 * args.window_size[0] / 2.0, y1 * (-args.window_size[0] / 2.0)], [x2 * args.window_size[0] / 2.0, y2 * (-args.window_size[0] / 2.0)], transform, gl);
+                let from = [x1 * args.window_size[0] / 2.0, y1 * (-args.window_size[0] / 2.0)];
+                let to = [x2 * args.window_size[0] / 2.0, y2 * (-args.window_size[0] / 2.0)];
+                line_from_to(col, 0.5, from, to, transform, gl);
             }
         });
     }
@@ -60,6 +63,32 @@ impl Renderer {
     }
 }
 
+fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
+    let mut lines = Vec::new();
+    for i in 0..ts.layers.len() {
+        let g = &ts.layers[i];
+        for node in &g.nodes {
+            lines.push(Line {
+                points: (node.x, node.y,
+                         node.next(g).x, node.next(g).y),
+                color: PINK,
+            });
+            if i == INNER {
+                if let Some(x) = node.acrossness.mid {
+                    lines.push(Line { points: (node.x, node.y, ts.layers[0].nodes[x].x, ts.layers[0].nodes[x].y), color: PURPLE })
+                }
+                if let Some(x) = node.acrossness.prev {
+                    lines.push(Line { points: (node.x, node.y, ts.layers[0].nodes[x].x, ts.layers[0].nodes[x].y), color: GREEN })
+                }
+                if let Some(x) = node.acrossness.next {
+                    lines.push(Line { points: (node.x, node.y, ts.layers[0].nodes[x].x, ts.layers[0].nodes[x].y), color: GREEN })
+                }
+            }
+        }
+    }
+    lines
+}
+
 pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    rng: &mut rand::rngs::ThreadRng,
                                    window: &mut Window,
@@ -68,29 +97,49 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    compression_factor: f64,
                                    how_smooth: usize) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
-
+    let mut should_step = false;
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
-        let mut lines = Vec::new();
-        for i in 0..ts.layers.len() {
-            let g = &ts.layers[i];
-            for node in &g.nodes {
-                lines.push(Line {
-                    points: (node.x, node.y,
-                             node.next(g).x, node.next(g).y),
-                    color: PINK,
-                });
-                if i == 0 {
-                    if let Some(x) = node.acrossness.mid {
-                        lines.push(Line { points: (node.x, node.y, ts.layers[1].nodes[x].x, ts.layers[1].nodes[x].y), color: PURPLE })
-                    }
-                    if let Some(x) = node.acrossness.prev {
-                        lines.push(Line { points: (node.x, node.y, ts.layers[1].nodes[x].x, ts.layers[1].nodes[x].y), color: GREEN })
-                    }
-                    if let Some(x) = node.acrossness.next {
-                        lines.push(Line { points: (node.x, node.y, ts.layers[1].nodes[x].x, ts.layers[1].nodes[x].y), color: GREEN })
-                    }
-                }
+        let lines = lines_from_thick_surface(ts);
+
+        if let Some(key) = e.press_args() {
+            should_step = !should_step
+        }
+
+        if let Some(args) = e.render_args() {
+            renderer.render(&args, &lines);
+        }
+
+        if let Some(args) = e.update_args() {
+            renderer.update(&args);
+        }
+
+        if should_step {
+            simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, rng);
+        }
+    }
+}
+
+pub fn render_playground(ts: &mut ThickSurface,
+                         window: &mut Window,
+                         renderer: &mut Renderer,
+                         which_node: usize,
+                         compression_factor: f64,
+                         how_smooth: usize) {
+
+    let mut events = Events::new(EventSettings::new());
+    let (outer, inner) = simulated_annealing::debug_changes(ts, how_smooth, compression_factor, which_node, (0.0, -0.2));
+    let should_apply = false;
+    while let Some(e) = events.next(window) {
+        let lines = lines_from_thick_surface(ts);
+
+        if let Some(key) = e.press_args() {
+            if should_apply {
+                graph_change::apply_changes(&mut ts.layers[OUTER], &outer);
+                graph_change::apply_changes(&mut ts.layers[INNER], &inner);
+            } else {
+                graph_change::revert_changes(&mut ts.layers[OUTER], &outer);
+                graph_change::revert_changes(&mut ts.layers[OUTER], &outer);
             }
         }
 
@@ -101,25 +150,8 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
         if let Some(args) = e.update_args() {
             renderer.update(&args);
         }
-
-        simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, rng);
     }
-}
 
-pub fn render_line_list(lines: &Vec<Line>,
-                        window: &mut Window,
-                        renderer: &mut Renderer) {
-
-    let mut events = Events::new(EventSettings::new());
-    while let Some(e) = events.next(window) {
-        if let Some(args) = e.render_args() {
-            renderer.render(&args, &lines);
-        }
-
-        if let Some(args) = e.update_args() {
-            renderer.update(&args);
-        }
-    }
 }
 
 pub fn setup_renderer() -> (Renderer, Window) {

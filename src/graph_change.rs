@@ -5,7 +5,7 @@ use graph::{distance_between_nodes};
 use graph_change::NeighborlyStatus::{FirstToSecond, SecondToFirst, NotNeighbors};
 use graphics::modular_index::next;
 
-pub fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
+fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
     if g.nodes[change.id].x == change.cur_x && g.nodes[change.id].y == change.cur_y {
         g.nodes[change.id].x = change.new_x;
@@ -143,58 +143,52 @@ fn neighborly_status(g: &Graph, id1: usize, id2: usize) -> NeighborlyStatus {
     }
 }
 
-fn lookup_node_id(g: &Graph) -> usize {
-    /* Graph nodes should be Option(Node)s */
-    g.nodes.len()
-}
-
-fn lookup_edge_id(g: &Graph) -> usize {
+fn available_edge_id(g: &Graph) -> usize {
     /* Graph edges should be Option(Edge)s */
     g.edges.len()
 }
 
-pub fn add_node_(ts: &mut ThickSurface, layer_added: usize, layer_across: usize, nodeness: NodeAddition){
-    let new_node_id = lookup_node_id(&ts.layers[layer_added]);
-    let new_edge_id = lookup_edge_id(&ts.layers[layer_added]);
+pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, nodeness: NodeAddition){
+    let new_edge_id = available_edge_id(&ts.layers[layer_id]);
+
     let prev_id = nodeness.prev_id;
     let next_id = nodeness.next_id;
     let new_node = Node {
-        id: new_node_id,
-        x: (ts.layers[layer_added].nodes[prev_id].x + ts.layers[layer_added].nodes[next_id].x) / 2.0,
-        y: (ts.layers[layer_added].nodes[prev_id].y + ts.layers[layer_added].nodes[next_id].y) / 2.0,
-        inc: ts.layers[layer_added].edges[ts.layers[layer_added].nodes[prev_id].out].id,
+        id: nodeness.id,
+        x: (ts.layers[layer_id].nodes[prev_id].x + ts.layers[layer_id].nodes[next_id].x) / 2.0,
+        y: (ts.layers[layer_id].nodes[prev_id].y + ts.layers[layer_id].nodes[next_id].y) / 2.0,
+        inc: ts.layers[layer_id].edges[ts.layers[layer_id].nodes[prev_id].out].id,
         out: new_edge_id,
-        acrossness: nodeness.mid_acrossness
+        acrossness: nodeness.this_layer_mid_acr
     };
     let new_edge = EdgeSameSurface {
         id: new_edge_id,
-        source: new_node_id,
-        target: ts.layers[layer_added].nodes[next_id].id
+        source: nodeness.id,
+        target: ts.layers[layer_id].nodes[next_id].id
     };
-    let out_index = ts.layers[layer_added].nodes[prev_id].out;
-    ts.layers[layer_added].edges[out_index].target = new_node_id;
-    ts.layers[layer_added].nodes[next_id].inc = new_edge_id;
-    // Changes to added layer acrossness
-    ts.layers[layer_added].nodes[next_id].acrossness = nodeness.next_acrossness;
-    ts.layers[layer_added].nodes[prev_id].acrossness = nodeness.prev_acrossness;
-    // Changes to across layer acrossness
-    match nodeness.next_acrossness.mid {
-        Some(x) => ts.layers[layer_across].nodes[x].acrossness.mid = Some(next_id),
-        None => 
-    }
-    ts.layers[layer_across].nodes[next_id].acrossness = nodeness.next_acrossness;
-    ts.layers[layer_across].nodes[next_id].acrossness = nodeness.next_acrossness;
-    ts.layers[layer_added].nodes.push(new_node);
-    ts.layers[layer_added].edges.push(new_edge);
+    let out_index = ts.layers[layer_id].nodes[prev_id].out;
+    ts.layers[layer_id].edges[out_index].target = nodeness.id;
+    ts.layers[layer_id].nodes[next_id].inc = new_edge_id;
+    ts.layers[layer_id].nodes[next_id].acrossness = nodeness.this_layer_next_acr;
+    ts.layers[layer_id].nodes[prev_id].acrossness = nodeness.this_layer_prev_acr;
+    ts.layers[layer_id].nodes.push(new_node);
+    ts.layers[layer_id].edges.push(new_edge);
 }
 
-// pub fn add_node(g: &mut Graph, across_g: &mut Graph, nodeness: NodeAddition) -> Result<(), &str>{
-//     match neighborly_status(g, nodeness.prev_id, nodeness.next_id) {
-//         FirstToSecond => Ok(add_node_(g, across_g, nodeness)),
-//         SecondToFirst => Ok(add_node_(g, across_g, nodeness)),
-//         NotNeighbors => Err("Tried adding node between two non-neighbors")
-//     }
-// }
+pub fn fix_neighbors(ts: &mut ThickSurface, layer_across: usize, nodeness: NodeAddition) {
+    match nodeness.this_layer_mid_acr.prev  {
+        Some(x) => ts.layers[layer_across].nodes[x].acrossness.next = Some(nodeness.id),
+        None => {} // Almost sure this is wrong
+    }
+    match nodeness.this_layer_mid_acr.mid {
+        Some(x) => ts.layers[layer_across].nodes[x].acrossness.mid = Some(nodeness.id),
+        None => {}
+    }
+    match nodeness.this_layer_mid_acr.next {
+        Some(x) => ts.layers[layer_across].nodes[x].acrossness.prev = Some(nodeness.id),
+        None => {} // Almost sure this is wrong
+    }
+}
 
 /* TODO (but this is actually far from a next step):
    This way of doing this is actually probably bad, because it doesn't take simultaneous changes into account.
@@ -247,7 +241,7 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
 #[cfg(test)]
 mod tests {
     use super::*;
-    use graph::{circular_graph, area};
+    use graph::{circular_graph, area, circular_thick_surface, node_to_add};
 
     #[test]
     fn change_is_applied_and_reversed() {
@@ -286,5 +280,31 @@ mod tests {
         assert_ne!(area_before, area_after_applying);
     }
 
+    #[test]
+    fn adding_node_leaves_consistent_graph() {
+        let size_of_graph = 30;
+        let mut circular = circular_thick_surface(1.0, 0.3, size_of_graph);
+
+        // Low addition threshold ensures this adds a node
+        let nodeness_to_add = node_to_add(&circular.layers[OUTER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
+        add_node_(&mut circular, OUTER, nodeness_to_add.unwrap());
+        fix_neighbors(&mut circular, INNER, nodeness_to_add.unwrap());
+
+        println!("{:?}", nodeness_to_add);
+        // New node should be at index size_of_graph
+        assert_eq!(nodeness_to_add.unwrap().id, size_of_graph);
+        assert_eq!(circular.layers[OUTER].nodes[size_of_graph].acrossness.mid, None);
+        assert_eq!(circular.layers[OUTER].nodes[size_of_graph].acrossness.next, Some(11));
+        assert_eq!(circular.layers[OUTER].nodes[size_of_graph].acrossness.prev, Some(10));
+
+        // The layer across was also preserved
+        assert_eq!(circular.layers[INNER].nodes[11].acrossness.mid, Some(11));
+        assert_eq!(circular.layers[INNER].nodes[11].acrossness.next, None);
+        assert_eq!(circular.layers[INNER].nodes[11].acrossness.prev, Some(size_of_graph)); // This
+
+        assert_eq!(circular.layers[INNER].nodes[10].acrossness.mid, Some(10));
+        assert_eq!(circular.layers[INNER].nodes[10].acrossness.next, Some(size_of_graph)); // And this fails. Ac
+        assert_eq!(circular.layers[INNER].nodes[10].acrossness.prev, None);
+    }
 }
 

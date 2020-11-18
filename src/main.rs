@@ -38,15 +38,26 @@ fn toml_table_to_params(table: toml::Value) -> Params {
     }
 }
 
-fn main() {
+fn real_main() {
     let params: Params = match std::fs::read_to_string("parameters.toml") {
         Err(_) => panic!("No parameters.toml file found in directory"),
         Ok(content) => toml_table_to_params(content.parse::<toml::Value>().unwrap())
     };
-    let mut my_graph = graph::thick_surface(params.initial_radius, params.initial_thickness,  params.initial_num_points);
+    let mut my_graph = graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points);
     let mut rng = rand::thread_rng();
 
     let (mut renderer, mut window) = renderer::setup_renderer();
-    
+
     renderer::setup_optimization_and_loop(&mut my_graph, &mut rng, &mut window, &mut renderer, params.initial_temperature, params.compression_factor, params.how_smooth)
+}
+
+fn playground_main() {
+    let mut my_graph = graph::debug_straight_surface(30);
+    let (mut renderer, mut window) = renderer::setup_renderer();
+    renderer::render_playground(&mut my_graph, &mut window, &mut renderer, 0, 1.0, 3);
+}
+
+fn main() {
+    //playground_main()
+    real_main()
 }
