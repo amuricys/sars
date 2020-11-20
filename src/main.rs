@@ -12,6 +12,7 @@ extern crate piston;
 extern crate rand;
 extern crate float_cmp;
 extern crate toml;
+extern crate vec1;
 
 struct Params {
     initial_thickness: f64,

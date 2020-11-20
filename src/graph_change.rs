@@ -148,7 +148,7 @@ fn available_edge_id(g: &Graph) -> usize {
     g.edges.len()
 }
 
-pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, nodeness: NodeAddition){
+pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, nodeness: &NodeAddition){
     let new_edge_id = available_edge_id(&ts.layers[layer_id]);
 
     let prev_id = nodeness.prev_id;
@@ -159,7 +159,7 @@ pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, nodeness: NodeAddition)
         y: (ts.layers[layer_id].nodes[prev_id].y + ts.layers[layer_id].nodes[next_id].y) / 2.0,
         inc: ts.layers[layer_id].edges[ts.layers[layer_id].nodes[prev_id].out].id,
         out: new_edge_id,
-        acrossness: nodeness.this_layer_mid_acr
+        acrossness: nodeness.acrossness
     };
     let new_edge = EdgeSameSurface {
         id: new_edge_id,
@@ -169,25 +169,8 @@ pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, nodeness: NodeAddition)
     let out_index = ts.layers[layer_id].nodes[prev_id].out;
     ts.layers[layer_id].edges[out_index].target = nodeness.id;
     ts.layers[layer_id].nodes[next_id].inc = new_edge_id;
-    ts.layers[layer_id].nodes[next_id].acrossness = nodeness.this_layer_next_acr;
-    ts.layers[layer_id].nodes[prev_id].acrossness = nodeness.this_layer_prev_acr;
     ts.layers[layer_id].nodes.push(new_node);
     ts.layers[layer_id].edges.push(new_edge);
-}
-
-pub fn fix_neighbors(ts: &mut ThickSurface, layer_across: usize, nodeness: NodeAddition) {
-    match nodeness.this_layer_mid_acr.prev  {
-        Some(x) => ts.layers[layer_across].nodes[x].acrossness.next = Some(nodeness.id),
-        None => {} // Almost sure this is wrong
-    }
-    match nodeness.this_layer_mid_acr.mid {
-        Some(x) => ts.layers[layer_across].nodes[x].acrossness.mid = Some(nodeness.id),
-        None => {}
-    }
-    match nodeness.this_layer_mid_acr.next {
-        Some(x) => ts.layers[layer_across].nodes[x].acrossness.prev = Some(nodeness.id),
-        None => {} // Almost sure this is wrong
-    }
 }
 
 /* TODO (but this is actually far from a next step):
@@ -287,8 +270,8 @@ mod tests {
 
         // Low addition threshold ensures this adds a node
         let nodeness_to_add = node_to_add(&circular.layers[OUTER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
-        add_node_(&mut circular, OUTER, nodeness_to_add.unwrap());
-        fix_neighbors(&mut circular, INNER, nodeness_to_add.unwrap());
+        add_node_(&mut circular, OUTER, &nodeness_to_add.unwrap());
+        fix_neighbors(&mut circular, INNER, &nodeness_to_add.unwrap());
 
         println!("{:?}", nodeness_to_add);
         // New node should be at index size_of_graph

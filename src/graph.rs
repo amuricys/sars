@@ -2,6 +2,7 @@ use std::f64::consts::PI;
 
 use types::*;
 use vector_2d_helpers::{norm};
+use vec1::Vec1;
 
 pub fn bleh_graph(num_points: usize, is_outer: bool) -> Graph {
     let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
@@ -134,34 +135,21 @@ fn available_node_id(g: &Graph) -> usize {
     g.nodes.len()
 }
 
+fn find_some_fucking_shit_idk_NAMMEESSS() {
+
+}
+
 pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
     let new_node_id = available_node_id(g);
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
        distance_between_nodes(prev, next) > addition_threshold {
-        match (prev.acrossness, next.acrossness) {
-            (Acrossness {mid: Some(_), prev: Some(_), next: Some(_)}, _) => None, // Cant add when a neighbor is overloaded
-            (_, Acrossness {mid: Some(_), prev: Some(_), next: Some(_)}) => None, // Cant add when a neighbor is overloaded
-            _ => {
-                let mid_acrossness = match (prev.acrossness, next.acrossness) {
-                    (Acrossness {mid: Some(r), prev: None, next: None}, Acrossness {mid: Some(l), prev: None, next: None}) => Acrossness {mid: None, prev: Some(r), next: Some(l)},
-                    (Acrossness {mid: _, prev: _, next: Some(r)}, _) => Acrossness {mid: Some(r), prev: None, next: None},
-                    (_, Acrossness {mid: _, prev: _, next: Some(l)}) => Acrossness {mid: Some(l), prev: None, next: None},
-                    (_, _) => {
-                        println!("Prev acrossness:\n{:?}\n\n, Next acrossness:\n{:?}\n\n", prev.acrossness, next.acrossness);
-                        panic!("")
-                    }
-                };
-                let prev_acrossness = match prev.acrossness {
-                    Acrossness {mid: Some(x), prev: None, next: Some(_)} => Acrossness {mid: Some(x), prev: None, next: None},
-                    y => y
-                };
-                let next_acrossness = match next.acrossness {
-                    Acrossness {mid: Some(x), prev: Some(_), next: None} => Acrossness {mid: Some(x), prev: None, next: None},
-                    y => y
-                };
-                Some(NodeAddition {id: new_node_id, prev_id: prev.id, next_id: next.id, this_layer_mid_acr: mid_acrossness, this_layer_prev_acr: prev_acrossness, this_layer_next_acr: next_acrossness })
-            }
-        }
+        let acrossness = find_some_fucking_shit_idk_NAMMEESSS();
+        Some(NodeAddition {
+            id: new_node_id,
+            prev_id: prev.id,
+            next_id: next.id,
+            acrossness: Vec1::new(1)
+        })
     } else { None }
 }
 

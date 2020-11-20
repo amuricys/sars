@@ -1,21 +1,13 @@
+use vec1::Vec1;
 pub type NodeIndex = usize;
 pub type EdgeIndex = usize;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Acrossness{
-    pub mid: Option<NodeIndex>,
-    pub prev: Option<NodeIndex>,
-    pub next: Option<NodeIndex>
-}
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct NodeAddition {
     pub id: usize,
     pub prev_id: usize,
     pub next_id: usize,
-    pub this_layer_mid_acr: Acrossness, // New node's acrossness
-    pub this_layer_prev_acr: Acrossness, // New node's prev's acrossness
-    pub this_layer_next_acr: Acrossness // New node's next's acrossness
+    pub acrossness: Vec1<NodeIndex>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +17,7 @@ pub struct Node {
     pub y: f64,
     pub inc: EdgeIndex,
     pub out: EdgeIndex,
-    pub acrossness: Acrossness, // Simple experimentation with prioritizing the push of across nodes. let's see
+    pub acrossness: Vec1<NodeIndex>,
 }
 
 impl Node {

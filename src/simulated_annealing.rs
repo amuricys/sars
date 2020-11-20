@@ -1,5 +1,5 @@
 use types::{ThickSurface, NodeChange, OUTER, INNER};
-use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node_, fix_neighbors};
+use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node_};
 use graph;
 use vector_2d_helpers::{lines_intersection};
 use rand::Rng;
@@ -80,8 +80,7 @@ fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
         }
     }
     for nodeness in nodes_to_add {
-        add_node_(ts, OUTER, nodeness);
-        fix_neighbors(ts, INNER, nodeness);
+        add_node_(ts, OUTER, &nodeness);
         println!("adding between {} and {}", nodeness.prev_id, nodeness.next_id);
     }
 }
@@ -125,6 +124,6 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    node_addition_effects(ts, 0.08);
+    node_addition_effects(ts, 0.05);
     check_accrossnesses(ts);
 }
