@@ -73,15 +73,11 @@ fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
                          node.next(g).x, node.next(g).y),
                 color: PINK,
             });
-            if i == INNER {
-                if let Some(x) = node.acrossness.mid {
-                    lines.push(Line { points: (node.x, node.y, ts.layers[0].nodes[x].x, ts.layers[0].nodes[x].y), color: PURPLE })
-                }
-                if let Some(x) = node.acrossness.prev {
-                    lines.push(Line { points: (node.x, node.y, ts.layers[0].nodes[x].x, ts.layers[0].nodes[x].y), color: GREEN })
-                }
-                if let Some(x) = node.acrossness.next {
-                    lines.push(Line { points: (node.x, node.y, ts.layers[0].nodes[x].x, ts.layers[0].nodes[x].y), color: GREEN })
+            if i == OUTER {
+                /* Non empty vector so first element is "privileged" */
+                lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[0]].x, ts.layers[INNER].nodes[node.acrossness[0]].y), color: PURPLE });
+                for acr_id in 1..node.acrossness.len() - 1 {
+                    lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[acr_id]].x, ts.layers[INNER].nodes[node.acrossness[acr_id]].y), color: GREEN })
                 }
             }
         }
@@ -95,7 +91,8 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    renderer: &mut Renderer,
                                    initial_temperature: f64,
                                    compression_factor: f64,
-                                   how_smooth: usize) {
+                                   how_smooth: usize,
+                                   node_addition_threshold: f64) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
     let mut should_step = false;
     let mut events = Events::new(EventSettings::new());
@@ -115,7 +112,7 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
         }
 
         if should_step {
-            simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, rng);
+            simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, rng);
         }
     }
 }

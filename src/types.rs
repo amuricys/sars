@@ -2,12 +2,12 @@ use vec1::Vec1;
 pub type NodeIndex = usize;
 pub type EdgeIndex = usize;
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NodeAddition {
-    pub id: usize,
-    pub prev_id: usize,
+    pub n: Node,
+    pub e: EdgeSameSurface,
     pub next_id: usize,
-    pub acrossness: Vec1<NodeIndex>,
+    pub prev_id: usize
 }
 
 #[derive(Debug, Clone, PartialEq)]

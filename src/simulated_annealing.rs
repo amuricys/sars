@@ -80,33 +80,7 @@ fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
         }
     }
     for nodeness in nodes_to_add {
-        add_node_(ts, OUTER, &nodeness);
-        println!("adding between {} and {}", nodeness.prev_id, nodeness.next_id);
-    }
-}
-
-pub fn check_accrossnesses(ts: &ThickSurface) {
-    let mut c = 0;
-    for g_id in 0..ts.layers.len() {
-        for n in &ts.layers[g_id].nodes {
-            let across = if g_id == 0 { 1 } else { 0 };
-            match n.acrossness.mid {
-                Some(x) => {
-                    if ts.layers[across].nodes[x].acrossness.mid.unwrap() != n.id {
-                        println!("node {} in {} layer has a mid across {}, node {} in {} layer has a mid across {}",
-                        n.id,
-                        if g_id == 0 { "OUTER" } else { "INNER" },
-                        x,
-                        x,
-                        if across == 0 { "OUTER" } else { "INNER" },
-                        ts.layers[across].nodes[x].acrossness.mid.unwrap());
-                        c += 1;
-                        if c >= 3 { panic!("Enough") }
-                    }
-                }
-                None => { }
-            }
-        }
+        add_node_(ts, OUTER, nodeness);
     }
 }
 
@@ -115,6 +89,7 @@ pub fn step(ts: &mut ThickSurface,
             temperature: f64,
             compression_factor: f64,
             how_smooth: usize,
+            node_addition_threshold: f64,
             rng: &mut rand::rngs::ThreadRng) {
     let (outer_changes, inner_changes) = neighbor_changes(ts, how_smooth, compression_factor, rng);
 
@@ -124,6 +99,6 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    node_addition_effects(ts, 0.05);
-    check_accrossnesses(ts);
+    node_addition_effects(ts, node_addition_threshold);
+    //assert_acrossness(ts); <- should check that neighbors are correctly set
 }

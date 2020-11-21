@@ -2,7 +2,6 @@ use types::*;
 use rand::Rng;
 use vector_2d_helpers::{direction_vector};
 use graph::{distance_between_nodes};
-use graph_change::NeighborlyStatus::{FirstToSecond, SecondToFirst, NotNeighbors};
 use graphics::modular_index::next;
 
 fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
@@ -27,14 +26,14 @@ fn revert_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange
     }
 }
 
-pub (crate) fn apply_changes(g: &mut Graph, changes: &Vec<NodeChange>) {
+pub(crate) fn apply_changes(g: &mut Graph, changes: &Vec<NodeChange>) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for change in changes {
         apply_change(g, change.clone());
     }
 }
 
-pub (crate) fn revert_changes(g: &mut Graph, changes: &Vec<NodeChange>) {
+pub(crate) fn revert_changes(g: &mut Graph, changes: &Vec<NodeChange>) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for change in changes {
         revert_change(g, change.clone());
@@ -81,12 +80,12 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
         if !enough_next {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth - dist_traveled_next) / how_smooth;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth - dist_traveled_next) / how_smooth;
-            ret.push(NodeChange{id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y});
+            ret.push(NodeChange { id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y });
         }
         if !enough_prev {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth - dist_traveled_prev) / how_smooth;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth - dist_traveled_prev) / how_smooth;
-            ret.push(NodeChange{id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y});
+            ret.push(NodeChange { id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y });
         }
         if enough_next && enough_prev { break; }
     }
@@ -112,65 +111,33 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
         let enough_prev = dist_traveled_prev > how_smooth;
 
         if !enough_next {
-            let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth  as f64;
+            let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
-            ret.push(NodeChange{id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y});
+            ret.push(NodeChange { id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y });
         }
         if !enough_prev {
             let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
             let diff_y = (change.new_y - change.cur_y) * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
-            ret.push(NodeChange{id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y});
+            ret.push(NodeChange { id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y });
         }
         if enough_next && enough_prev { break; }
     }
     ret
 }
 
-#[derive(Debug, PartialEq)]
-enum NeighborlyStatus {
-    FirstToSecond,
-    SecondToFirst,
-    NotNeighbors
-}
+pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, node_addition: NodeAddition) {
+    let out_index = ts.layers[layer_id].nodes[node_addition.prev_id].out;
+    ts.layers[layer_id].edges[out_index].target = node_addition.n.id;
+    ts.layers[layer_id].nodes[node_addition.next_id].inc = node_addition.e.id;
+    ts.layers[layer_id].nodes.push(node_addition.n);
+    ts.layers[layer_id].edges.push(node_addition.e);
 
-fn neighborly_status(g: &Graph, id1: usize, id2: usize) -> NeighborlyStatus {
-    if g.nodes[id1].next(g).id == id2 && g.nodes[id2].prev(g).id == id1 {
-        FirstToSecond
-    } else if g.nodes[id1].prev(g).id == id2 && g.nodes[id2].next(g).id == id1 {
-        SecondToFirst
-    } else {
-        NotNeighbors
-    }
-}
-
-fn available_edge_id(g: &Graph) -> usize {
-    /* Graph edges should be Option(Edge)s */
-    g.edges.len()
-}
-
-pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, nodeness: &NodeAddition){
-    let new_edge_id = available_edge_id(&ts.layers[layer_id]);
-
-    let prev_id = nodeness.prev_id;
-    let next_id = nodeness.next_id;
-    let new_node = Node {
-        id: nodeness.id,
-        x: (ts.layers[layer_id].nodes[prev_id].x + ts.layers[layer_id].nodes[next_id].x) / 2.0,
-        y: (ts.layers[layer_id].nodes[prev_id].y + ts.layers[layer_id].nodes[next_id].y) / 2.0,
-        inc: ts.layers[layer_id].edges[ts.layers[layer_id].nodes[prev_id].out].id,
-        out: new_edge_id,
-        acrossness: nodeness.acrossness
-    };
-    let new_edge = EdgeSameSurface {
-        id: new_edge_id,
-        source: nodeness.id,
-        target: ts.layers[layer_id].nodes[next_id].id
-    };
-    let out_index = ts.layers[layer_id].nodes[prev_id].out;
-    ts.layers[layer_id].edges[out_index].target = nodeness.id;
-    ts.layers[layer_id].nodes[next_id].inc = new_edge_id;
-    ts.layers[layer_id].nodes.push(new_node);
-    ts.layers[layer_id].edges.push(new_edge);
+    println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})",
+             node_addition.prev_id,
+             ts.layers[layer_id].nodes[node_addition.prev_id].x, ts.layers[layer_id].nodes[node_addition.prev_id].y,
+             node_addition.next_id,
+             ts.layers[layer_id].nodes[node_addition.next_id].x, ts.layers[layer_id].nodes[node_addition.next_id].y,
+             distance_between_nodes(&ts.layers[layer_id].nodes[node_addition.prev_id], &ts.layers[layer_id].nodes[node_addition.next_id]));
 }
 
 /* TODO (but this is actually far from a next step):
@@ -184,38 +151,18 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
         let cur_node = &other_graph.nodes[c.id];
         let mut nodes_across = Vec::new();
 
-        /* GOOOODDDDD THIS IS TERRIBLE */
-        if let Some(acr_id) = other_graph.nodes[c.id].acrossness.mid {
-            let node_across = &this_graph.nodes[acr_id];
-            let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
+        /* When a single node across exists, the below should work */
+        let acr_id = other_graph.nodes[c.id].acrossness[0];
+        let node_across = &this_graph.nodes[acr_id];
+        let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
 
-            let dist= distance_between_nodes(cur_node, node_across);
-            let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
+        let dist = distance_between_nodes(cur_node, node_across);
+        let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
 
-            let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
-            nodes_across.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
-        }
-        if let Some(acr_id) = other_graph.nodes[c.id].acrossness.prev {
-            let node_across = &this_graph.nodes[acr_id];
-            let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
+        let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
+        nodes_across.push(NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y });
 
-            let dist= distance_between_nodes(cur_node, node_across);
-            let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
-
-            let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
-            nodes_across.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
-        }
-        if let Some(acr_id) = other_graph.nodes[c.id].acrossness.next {
-            let node_across = &this_graph.nodes[acr_id];
-            let (prev_node, next_node) = (cur_node.prev(other_graph), cur_node.next(other_graph));
-
-            let dist= distance_between_nodes(cur_node, node_across);
-            let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
-
-            let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
-            nodes_across.push(NodeChange{id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y})
-        }
-        nodes_across = nodes_across.iter().map(|x| NodeChange {new_x: x.cur_x + ((x.new_x - x.cur_x) / nodes_across.len() as f64 ), ..*x} ).collect();
+        nodes_across = nodes_across.iter().map(|x| NodeChange { new_x: x.cur_x + ((x.new_x - x.cur_x) / nodes_across.len() as f64), ..*x }).collect();
         ret.append(&mut nodes_across);
     }
     ret
@@ -233,7 +180,7 @@ mod tests {
 
         let mut test_circ = circular_graph(0.0, 0.0, 1.0, size_of_test_circ);
         let area_before = area(&test_circ);
-        let change = NodeChange {id: 1, cur_x: test_circ.nodes[1].x, cur_y: test_circ.nodes[1].y, new_x: 70.0, new_y: 100.0};
+        let change = NodeChange { id: 1, cur_x: test_circ.nodes[1].x, cur_y: test_circ.nodes[1].y, new_x: 70.0, new_y: 100.0 };
 
         apply_change(&mut test_circ, change);
         let area_after_applying = area(&test_circ);
@@ -254,7 +201,7 @@ mod tests {
         let mut test_circ = circular_graph(0.0, 0.0, 1.0, size_of_test_circ);
         let area_before = area(&test_circ);
 
-        let mut rng =  rand::thread_rng();
+        let mut rng = rand::thread_rng();
         let change = random_change(&test_circ, (0.01, 0.02), &mut rng);
 
         apply_change(&mut test_circ, change);
@@ -269,25 +216,10 @@ mod tests {
         let mut circular = circular_thick_surface(1.0, 0.3, size_of_graph);
 
         // Low addition threshold ensures this adds a node
-        let nodeness_to_add = node_to_add(&circular.layers[OUTER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
-        add_node_(&mut circular, OUTER, &nodeness_to_add.unwrap());
-        fix_neighbors(&mut circular, INNER, &nodeness_to_add.unwrap());
-
-        println!("{:?}", nodeness_to_add);
-        // New node should be at index size_of_graph
-        assert_eq!(nodeness_to_add.unwrap().id, size_of_graph);
-        assert_eq!(circular.layers[OUTER].nodes[size_of_graph].acrossness.mid, None);
-        assert_eq!(circular.layers[OUTER].nodes[size_of_graph].acrossness.next, Some(11));
-        assert_eq!(circular.layers[OUTER].nodes[size_of_graph].acrossness.prev, Some(10));
-
-        // The layer across was also preserved
-        assert_eq!(circular.layers[INNER].nodes[11].acrossness.mid, Some(11));
-        assert_eq!(circular.layers[INNER].nodes[11].acrossness.next, None);
-        assert_eq!(circular.layers[INNER].nodes[11].acrossness.prev, Some(size_of_graph)); // This
-
-        assert_eq!(circular.layers[INNER].nodes[10].acrossness.mid, Some(10));
-        assert_eq!(circular.layers[INNER].nodes[10].acrossness.next, Some(size_of_graph)); // And this fails. Ac
-        assert_eq!(circular.layers[INNER].nodes[10].acrossness.prev, None);
+        let node_to_add = node_to_add(&circular.layers[OUTER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
+        println!("{:?}", node_to_add);
+        add_node_(&mut circular, OUTER, node_to_add.unwrap());
+        assert_eq!(node_to_add, node_to_add)
     }
 }
 

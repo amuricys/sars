@@ -20,21 +20,23 @@ struct Params {
     initial_num_points: usize,
     initial_temperature: f64,
     compression_factor: f64,
-    softness_factor: f64, // <- how much should closeness of nodes in different surfaces impact pushes?
-    how_smooth: usize
+    softness_factor: f64,    // <- how much should closeness of nodes in different surfaces impact pushes?
+    how_smooth: usize,
+    node_addition_threshold: f64
 }
 
 fn toml_table_to_params(table: toml::Value) -> Params {
     match table {
         toml::Value::Table(m) => Params {
-                initial_thickness: m.get("initial_thickness").unwrap().as_float().unwrap(),
-                initial_radius: m.get("initial_radius").unwrap().as_float().unwrap(),
-                initial_num_points: m.get("initial_num_points").unwrap().as_integer().unwrap() as usize,
-                initial_temperature: m.get("initial_temperature").unwrap().as_float().unwrap(),
-                compression_factor: m.get("compression_factor").unwrap().as_float().unwrap(),
-                softness_factor: m.get("softness_factor").unwrap().as_float().unwrap(),
-                how_smooth: m.get("how_smooth").unwrap().as_integer().unwrap() as usize,
-            },
+            initial_thickness: m.get("initial_thickness").unwrap().as_float().unwrap(),
+            initial_radius: m.get("initial_radius").unwrap().as_float().unwrap(),
+            initial_num_points: m.get("initial_num_points").unwrap().as_integer().unwrap() as usize,
+            initial_temperature: m.get("initial_temperature").unwrap().as_float().unwrap(),
+            compression_factor: m.get("compression_factor").unwrap().as_float().unwrap(),
+            softness_factor: m.get("softness_factor").unwrap().as_float().unwrap(),
+            how_smooth: m.get("how_smooth").unwrap().as_integer().unwrap() as usize,
+            node_addition_threshold: m.get("node_addition_threshold").unwrap().as_float().unwrap(),
+        },
         _ => panic!("No key-value table found in parameters.toml")
     }
 }
@@ -49,7 +51,7 @@ fn real_main() {
 
     let (mut renderer, mut window) = renderer::setup_renderer();
 
-    renderer::setup_optimization_and_loop(&mut my_graph, &mut rng, &mut window, &mut renderer, params.initial_temperature, params.compression_factor, params.how_smooth)
+    renderer::setup_optimization_and_loop(&mut my_graph, &mut rng, &mut window, &mut renderer, params.initial_temperature, params.compression_factor, params.how_smooth, params.node_addition_threshold)
 }
 
 fn playground_main() {
