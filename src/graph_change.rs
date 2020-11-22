@@ -3,6 +3,7 @@ use rand::Rng;
 use vector_2d_helpers::{direction_vector};
 use graph::{distance_between_nodes};
 use graphics::modular_index::next;
+use piston::input::keyboard::Key::Out;
 
 fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
@@ -125,16 +126,47 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
     ret
 }
 
+fn assert_acrossness(ts: &ThickSurface) {
+    let fst = &ts.layers[OUTER].nodes[0];
+    let mut j = fst.next(&ts.layers[OUTER]);
+    println!("Going forward...");
+    loop {
+        j = j.next(&ts.layers[OUTER]);
+        if j == fst { break }
+    }
+    println!("k didnt fuck it up. Going backward...");
+    loop {
+        j = j.prev(&ts.layers[OUTER]);
+        if j == fst { break }
+    }
+    println!("yay")
+}
+
+fn available_node_id(g: &Graph) -> usize {
+    /* Graph nodes should be Option(Node)s */
+    g.nodes.len()
+}
+
+fn available_edge_id(g: &Graph) -> usize {
+    /* Graph edges should be Option(Edge)s */
+    g.edges.len()
+}
+
+
 pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across: usize, node_addition: NodeAddition) {
+    let actual_node_id = available_node_id(&ts.layers[layer_to_which_add]);
+    let actual_edge_id = available_edge_id(&ts.layers[layer_to_which_add]);
+
     for across in &node_addition.n.acrossness {
-        ts.layers[layer_across].nodes[*across].acrossness.push(node_addition.n.id);
+        ts.layers[layer_across].nodes[*across].acrossness.push(actual_node_id);
     }
 
+    println!("Adding node {:?}", node_addition);
     let out_index = ts.layers[layer_to_which_add].nodes[node_addition.prev_id].out;
-    ts.layers[layer_to_which_add].edges[out_index].target = node_addition.n.id;
-    ts.layers[layer_to_which_add].nodes[node_addition.next_id].inc = node_addition.e.id;
-    ts.layers[layer_to_which_add].nodes.push(node_addition.n);
-    ts.layers[layer_to_which_add].edges.push(node_addition.e);
+    ts.layers[layer_to_which_add].edges[out_index].target = actual_node_id;
+    ts.layers[layer_to_which_add].nodes[node_addition.next_id].inc = actual_edge_id;
+    ts.layers[layer_to_which_add].nodes.push( Node {id: actual_node_id, ..node_addition.n});
+    ts.layers[layer_to_which_add].edges.push(EdgeSameSurface{id: actual_edge_id, ..node_addition.e});
 
     println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})",
              node_addition.prev_id,
@@ -142,6 +174,7 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across:
              node_addition.next_id,
              ts.layers[layer_to_which_add].nodes[node_addition.next_id].x, ts.layers[layer_to_which_add].nodes[node_addition.next_id].y,
              distance_between_nodes(&ts.layers[layer_to_which_add].nodes[node_addition.prev_id], &ts.layers[layer_to_which_add].nodes[node_addition.next_id]));
+    assert_acrossness(ts);
 }
 
 /* TODO (but this is actually far from a next step):

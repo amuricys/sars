@@ -69,19 +69,17 @@ fn intersection_effects(ts: &mut ThickSurface,
     }
 }
 
-fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
-    let mut nodes_to_add = Vec::new();
+fn add_single_node_effects(ts: &mut ThickSurface, addition_threshold: f64) {
     let graph_to_which_add = &ts.layers[OUTER];
     let graph_across = &ts.layers[INNER];
     for n in &graph_to_which_add.nodes {
-        let optional_node = graph::node_to_add(&graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold);
-        match optional_node{
-            Some(nodeness) => nodes_to_add.push(nodeness),
+        let shitload_of_fuck = graph::node_to_add(graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold);
+        match shitload_of_fuck {
+            Some(addition) => {
+                add_node_(ts, OUTER, INNER, addition);
+            }
             None => {}
         }
-    }
-    for nodeness in nodes_to_add {
-        add_node_(ts, OUTER, INNER, nodeness);
     }
 }
 
@@ -100,6 +98,5 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    node_addition_effects(ts, node_addition_threshold);
-    //assert_acrossness(ts); <- should check that neighbors are correctly set
+    add_single_node_effects(ts, node_addition_threshold);
 }
