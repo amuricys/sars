@@ -72,15 +72,16 @@ fn intersection_effects(ts: &mut ThickSurface,
 fn node_addition_effects(ts: &mut ThickSurface, addition_threshold: f64) {
     let mut nodes_to_add = Vec::new();
     let graph_to_which_add = &ts.layers[OUTER];
+    let graph_across = &ts.layers[INNER];
     for n in &graph_to_which_add.nodes {
-        let optional_node = graph::node_to_add(&graph_to_which_add, n, n.next(&graph_to_which_add), addition_threshold);
+        let optional_node = graph::node_to_add(&graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold);
         match optional_node{
             Some(nodeness) => nodes_to_add.push(nodeness),
             None => {}
         }
     }
     for nodeness in nodes_to_add {
-        add_node_(ts, OUTER, nodeness);
+        add_node_(ts, OUTER, INNER, nodeness);
     }
 }
 

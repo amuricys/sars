@@ -125,19 +125,23 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
     ret
 }
 
-pub fn add_node_(ts: &mut ThickSurface, layer_id: usize, node_addition: NodeAddition) {
-    let out_index = ts.layers[layer_id].nodes[node_addition.prev_id].out;
-    ts.layers[layer_id].edges[out_index].target = node_addition.n.id;
-    ts.layers[layer_id].nodes[node_addition.next_id].inc = node_addition.e.id;
-    ts.layers[layer_id].nodes.push(node_addition.n);
-    ts.layers[layer_id].edges.push(node_addition.e);
+pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across: usize, node_addition: NodeAddition) {
+    for across in &node_addition.n.acrossness {
+        ts.layers[layer_across].nodes[*across].acrossness.push(node_addition.n.id);
+    }
+
+    let out_index = ts.layers[layer_to_which_add].nodes[node_addition.prev_id].out;
+    ts.layers[layer_to_which_add].edges[out_index].target = node_addition.n.id;
+    ts.layers[layer_to_which_add].nodes[node_addition.next_id].inc = node_addition.e.id;
+    ts.layers[layer_to_which_add].nodes.push(node_addition.n);
+    ts.layers[layer_to_which_add].edges.push(node_addition.e);
 
     println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})",
              node_addition.prev_id,
-             ts.layers[layer_id].nodes[node_addition.prev_id].x, ts.layers[layer_id].nodes[node_addition.prev_id].y,
+             ts.layers[layer_to_which_add].nodes[node_addition.prev_id].x, ts.layers[layer_to_which_add].nodes[node_addition.prev_id].y,
              node_addition.next_id,
-             ts.layers[layer_id].nodes[node_addition.next_id].x, ts.layers[layer_id].nodes[node_addition.next_id].y,
-             distance_between_nodes(&ts.layers[layer_id].nodes[node_addition.prev_id], &ts.layers[layer_id].nodes[node_addition.next_id]));
+             ts.layers[layer_to_which_add].nodes[node_addition.next_id].x, ts.layers[layer_to_which_add].nodes[node_addition.next_id].y,
+             distance_between_nodes(&ts.layers[layer_to_which_add].nodes[node_addition.prev_id], &ts.layers[layer_to_which_add].nodes[node_addition.next_id]));
 }
 
 /* TODO (but this is actually far from a next step):

@@ -104,7 +104,38 @@ fn available_edge_id(g: &Graph) -> usize {
     g.edges.len()
 }
 
-pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
+fn find_acrossness(g_across: &Graph, prev: &Node, next: &Node) -> Vec1<NodeIndex> {
+    fn check_common_neighborhood(g: &Graph, n0: &usize, n1: &usize) -> bool {
+        g.nodes[*n0].next(g).id == *n1 ||
+        g.nodes[*n0].prev(g).id == *n1 ||
+        g.nodes[*n1].prev(g).id == *n0 ||
+        g.nodes[*n1].prev(g).id == *n0
+    }
+    for ac0 in &prev.acrossness {
+        for ac1 in &next.acrossness {
+            if ac0 == ac1 {
+                return Vec1::new(*ac0)
+            }
+            if check_common_neighborhood(g_across, ac0, ac1) {
+                let mut ret = Vec1::new(*ac0); ret.push(*ac1);
+                return ret
+            }
+        }
+    }
+    for ac0 in &prev.acrossness {
+        for ac1 in &next.acrossness {
+            println!("Checking if {} and {} are equal...", ac0, ac1);
+            println!("Checking if {} and {} have neighbors in common:", ac0, ac1);
+            println!("\t{}'s next(): {:?}; prev(): {:?}", *ac0, g_across.nodes[*ac0].next(g_across).id, g_across.nodes[*ac0].prev(g_across).id);
+            println!("\t{}'s next(): {:?}; prev(): {:?}", *ac1, g_across.nodes[*ac1].next(g_across).id, g_across.nodes[*ac1].prev(g_across).id);
+        }
+    }
+    println!("prev's across: {:?}", prev.acrossness);
+    println!("next's across: {:?}", next.acrossness);
+    panic!("Could not find shit.")
+}
+
+pub fn node_to_add(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
        distance_between_nodes(prev, next) > addition_threshold {
 
@@ -122,7 +153,7 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
             y: (prev.y + next.y) / 2.0,
             inc: g.edges[prev.out].id,
             out: new_edge_id,
-            acrossness: Vec1::new(0)};
+            acrossness: find_acrossness(g_across, prev, next)};
         Some( NodeAddition { n: new_node, e: new_edge, next_id: next.id, prev_id: prev.id })
     } else { None }
 }
