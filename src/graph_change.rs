@@ -8,8 +8,8 @@ use piston::input::keyboard::Key::Out;
 fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
     if g.nodes[change.id].x == change.cur_x && g.nodes[change.id].y == change.cur_y {
-        g.nodes[change.id].x = change.new_x;
-        g.nodes[change.id].y = change.new_y;
+        g.nodes[change.id].x = change.cur_x + change.delta_x;
+        g.nodes[change.id].y = change.cur_y + change.delta_y;
         Ok(g)
     } else {
         Err(change)
@@ -18,7 +18,7 @@ fn apply_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange>
 
 fn revert_change(g: &mut Graph, change: NodeChange) -> Result<&Graph, NodeChange> {
     /* TODO: Not thread safe */
-    if g.nodes[change.id].x == change.new_x && g.nodes[change.id].y == change.new_y {
+    if g.nodes[change.id].x == change.cur_x + change.delta_x && g.nodes[change.id].y == change.cur_y + change.delta_y {
         g.nodes[change.id].x = change.cur_x;
         g.nodes[change.id].y = change.cur_y;
         Ok(g)
@@ -54,8 +54,8 @@ pub fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::T
         id: to_change,
         cur_x: g.nodes[to_change].x,
         cur_y: g.nodes[to_change].y,
-        new_x: g.nodes[to_change].x + x_change,
-        new_y: g.nodes[to_change].y + y_change,
+        delta_x: x_change,
+        delta_y: y_change,
     }
 }
 
@@ -79,14 +79,14 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
         let enough_prev = dist_traveled_prev > how_smooth;
 
         if !enough_next {
-            let diff_x = (change.new_x - change.cur_x) * (how_smooth - dist_traveled_next) / how_smooth;
-            let diff_y = (change.new_y - change.cur_y) * (how_smooth - dist_traveled_next) / how_smooth;
-            ret.push(NodeChange { id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y });
+            let diff_x = change.delta_x * (how_smooth - dist_traveled_next) / how_smooth;
+            let diff_y = change.delta_y * (how_smooth - dist_traveled_next) / how_smooth;
+            ret.push(NodeChange { id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, delta_x: diff_x, delta_y: diff_y });
         }
         if !enough_prev {
-            let diff_x = (change.new_x - change.cur_x) * (how_smooth - dist_traveled_prev) / how_smooth;
-            let diff_y = (change.new_y - change.cur_y) * (how_smooth - dist_traveled_prev) / how_smooth;
-            ret.push(NodeChange { id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y });
+            let diff_x = change.delta_x * (how_smooth - dist_traveled_prev) / how_smooth;
+            let diff_y = change.delta_y * (how_smooth - dist_traveled_prev) / how_smooth;
+            ret.push(NodeChange { id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, delta_x: diff_x, delta_y: diff_y });
         }
         if enough_next && enough_prev { break; }
     }
@@ -112,14 +112,14 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> V
         let enough_prev = dist_traveled_prev > how_smooth;
 
         if !enough_next {
-            let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
-            let diff_y = (change.new_y - change.cur_y) * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
-            ret.push(NodeChange { id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, new_x: cur_next.x + diff_x, new_y: cur_next.y + diff_y });
+            let diff_x = change.delta_x * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
+            let diff_y = change.delta_y * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
+            ret.push(NodeChange { id: cur_next.id, cur_x: cur_next.x, cur_y: cur_next.y, delta_x: diff_x, delta_y: diff_y });
         }
         if !enough_prev {
-            let diff_x = (change.new_x - change.cur_x) * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
-            let diff_y = (change.new_y - change.cur_y) * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
-            ret.push(NodeChange { id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, new_x: cur_prev.x + diff_x, new_y: cur_prev.y + diff_y });
+            let diff_x = change.delta_x * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
+            let diff_y = change.delta_y * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
+            ret.push(NodeChange { id: cur_prev.id, cur_x: cur_prev.x, cur_y: cur_prev.y, delta_x: diff_x, delta_y: diff_y });
         }
         if enough_next && enough_prev { break; }
     }
@@ -197,9 +197,9 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
         let (dir_x, dir_y) = direction_vector(cur_node.x, cur_node.y, prev_node.x, prev_node.y, next_node.x, next_node.y);
 
         let (delta_x, delta_y) = (-dir_x * dist * compression_factor, -dir_y * dist * compression_factor);
-        nodes_across.push(NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, new_x: c.new_x + delta_x, new_y: c.new_y + delta_y });
-
-        nodes_across = nodes_across.iter().map(|x| NodeChange { new_x: x.cur_x + ((x.new_x - x.cur_x) / nodes_across.len() as f64), ..*x }).collect();
+        nodes_across.push(NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, delta_x: c.delta_x + delta_x, delta_y: c.delta_y + delta_y });
+        println!("{}, {}", delta_x, delta_y);
+        nodes_across = nodes_across.iter().map(|x| NodeChange { delta_x: x.cur_x + (x.delta_x / nodes_across.len() as f64), ..*x }).collect();
         ret.append(&mut nodes_across);
     }
     ret
@@ -217,7 +217,7 @@ mod tests {
 
         let mut test_circ = circular_graph(0.0, 0.0, 1.0, size_of_test_circ);
         let area_before = area(&test_circ);
-        let change = NodeChange { id: 1, cur_x: test_circ.nodes[1].x, cur_y: test_circ.nodes[1].y, new_x: 70.0, new_y: 100.0 };
+        let change = NodeChange { id: 1, cur_x: test_circ.nodes[1].x, cur_y: test_circ.nodes[1].y, delta_x: 70.0, delta_y: 100.0 };
 
         apply_change(&mut test_circ, change);
         let area_after_applying = area(&test_circ);
