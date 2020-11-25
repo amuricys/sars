@@ -73,10 +73,10 @@ fn add_single_node_effects(ts: &mut ThickSurface, addition_threshold: f64) {
     let graph_to_which_add = &ts.layers[OUTER];
     let graph_across = &ts.layers[INNER];
     for n in &graph_to_which_add.nodes {
-        let shitload_of_fuck = graph::node_to_add(graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold);
-        match shitload_of_fuck {
+        match graph::node_to_add(graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold) {
             Some(addition) => {
                 add_node_(ts, OUTER, INNER, addition);
+                break;
             }
             None => {}
         }
