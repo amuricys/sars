@@ -95,12 +95,18 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    node_addition_threshold: f64) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
     let mut should_step = false;
+    let mut one_at_a_time = true;
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
         let lines = lines_from_thick_surface(ts);
 
-        if let Some(key) = e.press_args() {
-            should_step = !should_step
+        if let Some(piston::Button::Keyboard(piston::Key::Space)) = e.press_args() {
+            should_step = !should_step;
+            one_at_a_time = !one_at_a_time
+        }
+
+        if let Some(piston::Button::Keyboard(piston::Key::N)) = e.press_args() {
+            if one_at_a_time { simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, rng); }
         }
 
         if let Some(args) = e.render_args() {

@@ -35,8 +35,8 @@ pub struct NodeChange {
     pub id: NodeIndex,
     pub cur_x: f64,
     pub cur_y: f64,
-    pub new_x: f64,
-    pub new_y: f64,
+    pub delta_x: f64,
+    pub delta_y: f64
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
