@@ -170,6 +170,30 @@ pub fn node_to_add(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, additi
     } else { None }
 }
 
+pub fn node_to_delete(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<NodeAddition> {
+    if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
+        distance_between_nodes(prev, next) < deletion_threshold {
+
+        let new_node_id = available_node_id(g);
+        let new_edge_id = available_edge_id(g);
+
+        let new_edge = EdgeSameSurface {
+            id: new_edge_id,
+            source: new_node_id,
+            target: next.id,
+        };
+        let new_node = Node {
+            id: new_node_id,
+            x:  (prev.x + next.x) / 2.0,
+            y: (prev.y + next.y) / 2.0,
+            inc: g.edges[prev.out].id,
+            out: new_edge_id,
+            acrossness: find_acrossness(g_across, prev, next)};
+        Some( NodeAddition { n: new_node, e: new_edge, next_id: next.id, prev_id: prev.id })
+    } else { None }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

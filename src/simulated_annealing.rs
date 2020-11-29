@@ -103,6 +103,21 @@ fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, layer_acr
     }
 }
 
+fn delete_single_node_effects(ts: &mut ThickSurface, layer_to_delete: usize, layer_across: usize, addition_threshold: f64) {
+    let graph_from_which_delete = &ts.layers[layer_to_delete];
+    let graph_across = &ts.layers[layer_across];
+
+    for n in &graph_from_which_delete.nodes {
+        match graph::node_to_add(graph_from_which_delete, graph_across, n, n.next(&graph_from_which_delete), addition_threshold) {
+            Some(addition) => {
+                add_node_(ts, layer_to_delete, layer_across, addition);
+                break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
+            }
+            None => {}
+        }
+    }
+}
+
 pub fn step(ts: &mut ThickSurface,
             initial_gray_matter_area: f64,
             temperature: f64,
@@ -119,8 +134,8 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    // add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
-    add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
+    add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
+    // add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
 }
 
 pub fn step_with_manual_change(ts: &mut ThickSurface,
@@ -140,6 +155,6 @@ pub fn step_with_manual_change(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    // add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
+    add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
     add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
 }

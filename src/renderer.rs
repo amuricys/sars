@@ -116,7 +116,10 @@ fn next_state(event: Option<Button>, s: State) -> State {
             step_type: if s.one_at_a_time { StepType::ManualChange } else { s.step_type },
             ..s
         },
-        _ => s
+        _ => State {
+            step_type: if !s.should_step { StepType::NoStep } else { s.step_type },
+            ..s
+        }
     }
 }
 
@@ -130,10 +133,11 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    node_addition_threshold: f64,
                                    low_high: (f64, f64)) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
-    let proto_change = NodeChange {id: 0, cur_x: ts.layers[OUTER].nodes[0].x, cur_y: ts.layers[OUTER].nodes[0].y, delta_x: 0.2, delta_y: 0.0};
-    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::Automatic};
+    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep};
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
+        let proto_change = NodeChange {id: 0, cur_x: ts.layers[OUTER].nodes[0].x, cur_y: ts.layers[OUTER].nodes[0].y, delta_x: -0.2, delta_y: 0.0};
+
         let lines = lines_from_thick_surface(ts);
 
         if let Some(args) = e.render_args() {
