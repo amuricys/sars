@@ -6,7 +6,7 @@ pub fn normed_vector(x: f64, y: f64) -> (f64, f64) {
     (x * (1.0 / norm(x, y)), y * (1.0 / norm(x, y)))
 }
 
-pub fn direction_vector(middle_x: f64, middle_y: f64, clkwise_x: f64, clkwise_y: f64, ctrclkwise_x: f64, ctrclkwise_y: f64) -> (f64, f64) {
+pub fn bisecting_vector(middle_x: f64, middle_y: f64, clkwise_x: f64, clkwise_y: f64, ctrclkwise_x: f64, ctrclkwise_y: f64) -> (f64, f64) {
     let (normed_offset_clkwise_x, normed_offset_clkwise_y) = normed_vector(clkwise_x - middle_x, clkwise_y - middle_y);
     let (normed_offset_ctrclkwise_x, normed_offset_ctrclkwise_y) = normed_vector(ctrclkwise_x - middle_x, ctrclkwise_y - middle_y);
 
@@ -77,10 +77,16 @@ mod tests {
     #[test]
     fn direction_for_inner_push_is_correct() {
         // TODO: Looks kinda good but deserves more thought
-        assert_eq!(direction_vector(0.0, 0.0, -1.0, -0.5, 1.0, -0.5), (0.0, -1.0));
-        let (some_dir_x, some_dir_y) = direction_vector(0.0, 0.0, 0.0, 100.0, 1.0, 0.0);
+        assert_eq!(bisecting_vector(0.0, 0.0, -1.0, -0.5, 1.0, -0.5), (0.0, -1.0));
+        let (some_dir_x, some_dir_y) = bisecting_vector(0.0, 0.0, 0.0, 100.0, 1.0, 0.0);
         assert_eq!(some_dir_y, some_dir_y);
         approx_eq!(f64, norm(some_dir_x, some_dir_y), 1.0);
+    }
+
+    #[test]
+    fn bisecting_vector_is_in_the_middle(){
+        let ((left_x, left_y), (right_x, right_y)) = ((-1.0, 0.0), (0.0,1.0));
+        assert!(true);
     }
 
     #[test]

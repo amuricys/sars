@@ -22,7 +22,8 @@ struct Params {
     compression_factor: f64,
     softness_factor: f64,    // <- how much should closeness of nodes in different surfaces impact pushes?
     how_smooth: usize,
-    node_addition_threshold: f64
+    node_addition_threshold: f64,
+    low_high: (f64, f64)
 }
 
 fn toml_table_to_params(table: toml::Value) -> Params {
@@ -36,6 +37,7 @@ fn toml_table_to_params(table: toml::Value) -> Params {
             softness_factor: m.get("softness_factor").unwrap().as_float().unwrap(),
             how_smooth: m.get("how_smooth").unwrap().as_integer().unwrap() as usize,
             node_addition_threshold: m.get("node_addition_threshold").unwrap().as_float().unwrap(),
+            low_high: (m.get("low_high").unwrap().as_array().unwrap()[0].as_float().unwrap(), m.get("low_high").unwrap().as_array().unwrap()[1].as_float().unwrap())
         },
         _ => panic!("No key-value table found in parameters.toml")
     }
@@ -51,12 +53,21 @@ fn real_main() {
 
     let (mut renderer, mut window) = renderer::setup_renderer();
 
-    renderer::setup_optimization_and_loop(&mut my_graph, &mut rng, &mut window, &mut renderer, params.initial_temperature, params.compression_factor, params.how_smooth, params.node_addition_threshold)
+    renderer::setup_optimization_and_loop(&mut my_graph,
+                                          &mut rng,
+                                          &mut window,
+                                          &mut renderer,
+                                          params.initial_temperature,
+                                          params.compression_factor,
+                                          params.how_smooth,
+                                          params.node_addition_threshold,
+                                          params.low_high)
 }
 
 fn playground_main() {
     let mut my_graph = graph::debug_straight_surface(30);
-    let (mut renderer, mut window) = renderer::setup_renderer();
+    let (mut renderer,
+        mut window) = renderer::setup_renderer();
     renderer::render_playground(&mut my_graph, &mut window, &mut renderer, 0, 1.0, 3);
 }
 

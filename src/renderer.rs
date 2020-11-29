@@ -4,11 +4,12 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 
-use types::{ThickSurface, OUTER, INNER};
+use types::{ThickSurface, OUTER, INNER, NodeChange, Node};
 use simulated_annealing;
 use graph_change;
 use graph;
-use piston::PressEvent;
+use piston::{PressEvent, Button};
+use simulated_annealing::step_with_manual_change;
 
 type Color = [f32; 4];
 const BLACK: Color = [0.0, 0.0, 0.0, 0.0];
@@ -85,6 +86,40 @@ fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
     lines
 }
 
+#[derive(Debug, PartialOrd, PartialEq)]
+pub enum StepType {
+    ManualChange,
+    OneAtATime,
+    Automatic,
+    NoStep
+}
+
+#[derive(Debug, PartialOrd, PartialEq)]
+struct State {
+    pub should_step: bool,
+    pub one_at_a_time: bool,
+    pub step_type: StepType,
+}
+
+fn next_state(event: Option<Button>, s: State) -> State {
+    match event {
+        Some(piston::Button::Keyboard(piston::Key::Space)) => State {
+            should_step: !s.should_step,
+            one_at_a_time: !s.one_at_a_time,
+            step_type: match s.step_type { StepType::Automatic => StepType::NoStep, _ => StepType::Automatic }
+        },
+        Some(piston::Button::Keyboard(piston::Key::N)) => State {
+            step_type: if s.one_at_a_time { StepType::OneAtATime } else { s.step_type },
+            ..s
+        },
+        Some(piston::Button::Keyboard(piston::Key::M)) => State {
+            step_type: if s.one_at_a_time { StepType::ManualChange } else { s.step_type },
+            ..s
+        },
+        _ => s
+    }
+}
+
 pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    rng: &mut rand::rngs::ThreadRng,
                                    window: &mut Window,
@@ -92,22 +127,14 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    initial_temperature: f64,
                                    compression_factor: f64,
                                    how_smooth: usize,
-                                   node_addition_threshold: f64) {
+                                   node_addition_threshold: f64,
+                                   low_high: (f64, f64)) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
-    let mut should_step = false;
-    let mut one_at_a_time = true;
+    let proto_change = NodeChange {id: 0, cur_x: ts.layers[OUTER].nodes[0].x, cur_y: ts.layers[OUTER].nodes[0].y, delta_x: 0.2, delta_y: 0.0};
+    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::Automatic};
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
         let lines = lines_from_thick_surface(ts);
-
-        if let Some(piston::Button::Keyboard(piston::Key::Space)) = e.press_args() {
-            should_step = !should_step;
-            one_at_a_time = !one_at_a_time
-        }
-
-        if let Some(piston::Button::Keyboard(piston::Key::N)) = e.press_args() {
-            if one_at_a_time { simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, rng); }
-        }
 
         if let Some(args) = e.render_args() {
             renderer.render(&args, &lines);
@@ -117,8 +144,12 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
             renderer.update(&args);
         }
 
-        if should_step {
-            simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, rng);
+        state = next_state(e.press_args(), state);
+        match state.step_type {
+            StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, low_high, rng),
+            StepType::OneAtATime => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, low_high, rng),
+            StepType::Automatic => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, low_high, rng),
+            StepType::NoStep => { }
         }
     }
 }

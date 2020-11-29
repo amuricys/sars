@@ -1,6 +1,6 @@
 use types::*;
 use rand::Rng;
-use vector_2d_helpers::{direction_vector};
+use vector_2d_helpers::{bisecting_vector, norm};
 use graph::{distance_between_nodes};
 use graphics::modular_index::next;
 use piston::input::keyboard::Key::Out;
@@ -178,18 +178,64 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across:
     assert_acrossness(ts);
 }
 
+fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &HashMap<usize, NodeChange>) -> (f64, f64) {
+    (change.cur_x, change.cur_y)
+}
+
+fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_changes: &HashMap<usize, NodeChange>) -> (f64, f64) {
+    let changed_nodes_prev = other_graph.nodes[change.id].prev(other_graph);
+    let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
+        Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
+        None => (changed_nodes_prev.x, changed_nodes_prev.y)
+    };
+    let changed_nodes_next = other_graph.nodes[change.id].next(other_graph);
+    let (next_ref_x, next_ref_y) = match other_graph_changes.get(&changed_nodes_next.id) {
+        Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
+        None => (changed_nodes_next.x, changed_nodes_next.y)
+    };
+    /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
+    let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, prev_ref_x, prev_ref_y, next_ref_x, next_ref_y);
+
+    (- dir_x * norm(change.delta_x, change.delta_y), - dir_y * norm(change.delta_x, change.delta_y))
+}
+
+fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeChange, other_graph_changes: &HashMap<usize, NodeChange>, compression_factor: f64) -> (f64, f64) {
+    let changed_nodes_prev = other_graph.nodes[change.id].prev(other_graph);
+    let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
+        //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
+        _ => (changed_nodes_prev.x, changed_nodes_prev.y)
+    };
+    let changed_nodes_next = other_graph.nodes[change.id].next(other_graph);
+    let (next_ref_x, next_ref_y) = match other_graph_changes.get(&changed_nodes_next.id) {
+        //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
+        _ => (changed_nodes_next.x, changed_nodes_next.y)
+    };
+    /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
+    let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, next_ref_x, next_ref_y, prev_ref_x, prev_ref_y);
+
+    let node_across = &graph_across.nodes[other_graph.nodes[change.id].acrossness[0]];
+    let dist = distance_between_nodes(&node_across, &other_graph.nodes[change.id]);
+
+    let (desired_pos_x, desired_pos_y) = ((change.cur_x + change.delta_x) + dir_x * dist * compression_factor, (change.cur_y + change.delta_y) + dir_y * dist  * compression_factor);
+
+    (- node_across.x + desired_pos_x, - node_across.y + desired_pos_y)
+}
+
 /* TODO: other_graph_changes should become a HashMap<usize, NodeChange>. This allows it to find the soon-to-be changed
     versions of the outer changed nodes, calculate what the delta of the nodes across is in relation to _that_ position,
     and then push it in that direction with weight (1 / acrossness_len) */
 pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_graph_changes: &HashMap<usize, NodeChange>, compression_factor: f64) -> HashMap<usize, NodeChange> {
     let mut ret = HashMap::new();
     for (_, c) in other_graph_changes {
-        let (delta_x, delta_y) = (c.delta_x, c.delta_y);
+        let (delta_x, delta_y) = direction_vector2(this_graph, other_graph, c, other_graph_changes, compression_factor);
 
         /* This should be done for each node across the changed one */
-        let acr_id = other_graph.nodes[c.id].acrossness[0];
-        let node_across = &this_graph.nodes[acr_id];
-        ret.insert(node_across.id, NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, delta_x, delta_y });
+        for acr_id in &other_graph.nodes[c.id].acrossness {
+            let node_across = &this_graph.nodes[*acr_id];
+            /*The line below normalizes this change: if a change is made to one of 3 of an inner node's acrosses, that change should only push it by 1/3 */
+            let (delta_x, delta_y) = (delta_x / node_across.acrossness.len() as f64, delta_y / node_across.acrossness.len() as f64);
+            ret.insert(node_across.id, NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, delta_x, delta_y});
+        }
     }
     ret
 }
@@ -197,7 +243,8 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
 #[cfg(test)]
 mod tests {
     use super::*;
-    use graph::{circular_graph, area, circular_thick_surface, node_to_add};
+    use graph::{cyclic_graph_from_coords, circular_graph, area, circular_thick_surface, node_to_add, establish_correspondences};
+    use vec1::Vec1;
 
     #[test]
     fn change_is_applied_and_reversed() {
@@ -217,6 +264,23 @@ mod tests {
         let area_after_reverting = area(&test_circ);
 
         assert_eq!(area_after_reverting, area_before);
+    }
+
+    #[test]
+    fn inner_from_outer_changes() {
+        let vertical_line = [(0.0, 1.0), (0.0, 0.0), (0.0,-1.0)];
+        let vertical_line_slightly_to_left = [(-0.2, 1.0), (-0.2, 0.0), (-0.2,-1.0)];
+        let mut test_outer_graph = cyclic_graph_from_coords(&Vec1::try_from_vec(Vec::from(vertical_line)).unwrap());
+        let mut test_inner_graph = cyclic_graph_from_coords(&Vec1::try_from_vec(Vec::from(vertical_line_slightly_to_left)).unwrap());
+        establish_correspondences(&mut test_outer_graph, &mut test_inner_graph);
+        let mut the_change = HashMap::new();
+        the_change.insert(1, NodeChange{ id: 1, cur_x: 0.0, cur_y: 0.0, delta_x: 0.5, delta_y: 0.0 });
+        let the_fuckin_change = changes_from_other_graph(&test_inner_graph, &test_outer_graph, &the_change, 1.0);
+
+        println!("{:?}", the_fuckin_change);
+        assert_eq!(the_fuckin_change.get(&1 ).unwrap().delta_x, 0.5);
+        assert_eq!(the_fuckin_change.get(&1 ).unwrap().delta_y, 0.0);
+
     }
 
     #[test]
@@ -243,9 +307,8 @@ mod tests {
 
         // Low addition threshold ensures this adds a node
         let node_to_add = node_to_add(&circular.layers[OUTER], &circular.layers[INNER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
-        println!("{:?}", node_to_add);
         add_node_(&mut circular, OUTER, INNER, node_to_add.unwrap());
-        assert_eq!(node_to_add, node_to_add)
+        assert_eq!(1.0, 1.0)
     }
 }
 

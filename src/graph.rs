@@ -4,17 +4,18 @@ use types::*;
 use vector_2d_helpers::{norm};
 use vec1::Vec1;
 
-pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
+pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
     let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
     let will_get_overridden_by_establish_corrs = 300;
-    to_return.nodes.push(Node{id: 0, x: center_x + radius, y: center_y as f64, inc: num_points-1, out: 0, acrossness: Vec1::new(will_get_overridden_by_establish_corrs)});
+    let num_points = node_coordinates.len();
+    to_return.nodes.push(Node{id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, inc: num_points-1, out: 0, acrossness: Vec1::new(will_get_overridden_by_establish_corrs)});
     for i in 1..num_points {
         let new_edge = EdgeSameSurface{source: i-1, target: i, id: i-1};
         to_return.edges.push(new_edge);
 
         let new_node = Node{id: i,
-            x: center_x as f64 + (i as f64 * (2.0 * PI) / num_points as f64).cos() * radius,
-            y: center_y as f64 + (i as f64 * (2.0 * PI) / num_points as f64).sin() * radius,
+            x: node_coordinates[i].0,
+            y: node_coordinates[i].1,
             inc: i-1,
             out: i,
             acrossness: Vec1::new(will_get_overridden_by_establish_corrs)
@@ -27,7 +28,18 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
     to_return
 }
 
-fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
+pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
+    let mut circular_coords = Vec1::new((center_x + radius, center_y));
+    for i in 1..num_points {
+        circular_coords.push((
+            center_x + (i as f64 * (2.0 * PI) / num_points as f64).cos() * radius,
+            center_y + (i as f64 * (2.0 * PI) / num_points as f64).sin() * radius)
+        )
+    }
+    cyclic_graph_from_coords(&circular_coords)
+}
+
+pub fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
     for i in 0..outer.nodes.len() {
         outer.nodes[i].acrossness[0] = i;
         inner.nodes[i].acrossness[0] = i;
@@ -193,8 +205,6 @@ mod tests {
         let size_of_graph = 200;
         let test_circ = circular_graph(0.0, 0.0, 1.0, size_of_graph);
 
-        println!("area: {:?}", area(&test_circ));
-
         assert!(area(&test_circ) < 3.15);
         assert!(area(&test_circ) > 3.13);
 
@@ -204,8 +214,6 @@ mod tests {
     fn circular_perimeter() {
         let size_of_graph = 200;
         let test_circ = circular_graph(2.0, 7.0, 1.0, size_of_graph);
-
-        println!("{:?}", perimeter(&test_circ));
 
         assert!(perimeter(&test_circ) < 6.30);
         assert!(perimeter(&test_circ) > 6.26);
