@@ -3,15 +3,16 @@ use std::f64::consts::PI;
 use types::*;
 use vector_2d_helpers::{norm};
 use vec1::Vec1;
+use std::collections::HashMap;
 
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
-    let mut to_return: Graph = Graph { nodes: vec![], edges: vec![] };
+    let mut to_return: Graph = Graph { nodes: HashMap::new(), edges: HashMap::new() };
     let will_get_overridden_by_establish_corrs = 300;
     let num_points = node_coordinates.len();
-    to_return.nodes.push(Node{id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, inc: num_points-1, out: 0, acrossness: Vec1::new(will_get_overridden_by_establish_corrs)});
+    to_return.nodes.insert(0, Node{id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, inc: num_points-1, out: 0, acrossness: Vec1::new(will_get_overridden_by_establish_corrs)});
     for i in 1..num_points {
         let new_edge = EdgeSameSurface{source: i-1, target: i, id: i-1};
-        to_return.edges.push(new_edge);
+        to_return.edges.insert(i-1,new_edge);
 
         let new_node = Node{id: i,
             x: node_coordinates[i].0,
@@ -20,10 +21,10 @@ pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
             out: i,
             acrossness: Vec1::new(will_get_overridden_by_establish_corrs)
         };
-        to_return.nodes.push(new_node);
+        to_return.nodes.insert(i, new_node);
     }
     let new_edge = EdgeSameSurface{source: num_points - 1, target: 0, id: num_points - 1};
-    to_return.edges.push(new_edge);
+    to_return.edges.insert(new_edge.id ,new_edge);
 
     to_return
 }
@@ -41,8 +42,8 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
 
 pub fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
     for i in 0..outer.nodes.len() {
-        outer.nodes[i].acrossness[0] = i;
-        inner.nodes[i].acrossness[0] = i;
+        outer.nodes.get_mut(&i).unwrap().acrossness[0] = i;
+        inner.nodes.get_mut(&i).unwrap().acrossness[0] = i;
     }
 }
 
@@ -61,7 +62,7 @@ pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) ->
 
 pub fn area(g: &Graph) -> f64 {
     let mut ret = 0.0;
-    for n in &g.nodes {
+    for (_, n) in &g.nodes {
         let prev = n.prev(g);
         let next = n.next(g);
 
@@ -72,7 +73,7 @@ pub fn area(g: &Graph) -> f64 {
 
 pub fn perimeter(g: &Graph) -> f64 {
     let mut ret = 0.0;
-    let first = &g.nodes[0];
+    let (_, first) = g.nodes.iter().nth(0).unwrap();
     let mut cur = first;
     loop {
         let next = cur.next(g);
@@ -87,9 +88,9 @@ pub fn perimeter(g: &Graph) -> f64 {
 
 fn graph_to_lines(g: &Graph) -> Vec<(f64,f64,f64,f64)> {
     let mut ret = Vec::new();
-    for edge in &g.edges {
-        let node1 = &g.nodes[edge.source];
-        let node2 = &g.nodes[edge.target];
+    for (_, edge) in &g.edges {
+        let node1 = g.nodes.get(&edge.source).unwrap();
+        let node2 = g.nodes.get(&edge.target).unwrap();
         ret.push((node1.x, node1.y, node2.x, node2.y));
     }
     ret
@@ -118,10 +119,10 @@ fn available_edge_id(g: &Graph) -> usize {
 
 fn find_acrossness(g_across: &Graph, prev: &Node, next: &Node) -> Vec1<NodeIndex> {
     fn check_common_neighborhood(g: &Graph, n0: &usize, n1: &usize) -> bool {
-        g.nodes[*n0].next(g).id == *n1 ||
-        g.nodes[*n0].prev(g).id == *n1 ||
-        g.nodes[*n1].prev(g).id == *n0 ||
-        g.nodes[*n1].prev(g).id == *n0
+        g.nodes.get(n0).unwrap().next(g).id == *n1 ||
+        g.nodes.get(n0).unwrap().prev(g).id == *n1 ||
+        g.nodes.get(n1).unwrap().prev(g).id == *n0 ||
+        g.nodes.get(n1).unwrap().prev(g).id == *n0
     }
     for ac0 in &prev.acrossness {
         for ac1 in &next.acrossness {
@@ -138,8 +139,8 @@ fn find_acrossness(g_across: &Graph, prev: &Node, next: &Node) -> Vec1<NodeIndex
         for ac1 in &next.acrossness {
             println!("Checking if {} and {} are equal...", ac0, ac1);
             println!("Checking if {} and {} have neighbors in common:", ac0, ac1);
-            println!("\t{}'s next(): {:?}; prev(): {:?}", *ac0, g_across.nodes[*ac0].next(g_across).id, g_across.nodes[*ac0].prev(g_across).id);
-            println!("\t{}'s next(): {:?}; prev(): {:?}", *ac1, g_across.nodes[*ac1].next(g_across).id, g_across.nodes[*ac1].prev(g_across).id);
+            println!("\t{}'s next(): {:?}; prev(): {:?}", *ac0, g_across.nodes.get(ac0).unwrap().next(g_across).id, g_across.nodes.get(ac0).unwrap().prev(g_across).id);
+            println!("\t{}'s next(): {:?}; prev(): {:?}", *ac1, g_across.nodes.get(ac1).unwrap().next(g_across).id, g_across.nodes.get(ac1).unwrap().prev(g_across).id);
         }
     }
     println!("prev's across: {:?}", prev.acrossness);
@@ -163,33 +164,17 @@ pub fn node_to_add(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, additi
             id: new_node_id,
             x:  (prev.x + next.x) / 2.0,
             y: (prev.y + next.y) / 2.0,
-            inc: g.edges[prev.out].id,
+            inc: g.edges.get(&prev.out).unwrap().id,
             out: new_edge_id,
             acrossness: find_acrossness(g_across, prev, next)};
         Some( NodeAddition { n: new_node, e: new_edge, next_id: next.id, prev_id: prev.id })
     } else { None }
 }
 
-pub fn node_to_delete(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<NodeAddition> {
+pub fn node_to_delete(g: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<(NodeIndex, NodeIndex)> {
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
         distance_between_nodes(prev, next) < deletion_threshold {
-
-        let new_node_id = available_node_id(g);
-        let new_edge_id = available_edge_id(g);
-
-        let new_edge = EdgeSameSurface {
-            id: new_edge_id,
-            source: new_node_id,
-            target: next.id,
-        };
-        let new_node = Node {
-            id: new_node_id,
-            x:  (prev.x + next.x) / 2.0,
-            y: (prev.y + next.y) / 2.0,
-            inc: g.edges[prev.out].id,
-            out: new_edge_id,
-            acrossness: find_acrossness(g_across, prev, next)};
-        Some( NodeAddition { n: new_node, e: new_edge, next_id: next.id, prev_id: prev.id })
+        Some((prev.id, next.id))
     } else { None }
 }
 

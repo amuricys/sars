@@ -8,9 +8,9 @@ use std::collections::HashMap;
 
 fn apply_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph, NodeChange> {
     /* TODO: Not thread safe */
-    if g.nodes[change.id].x == change.cur_x && g.nodes[change.id].y == change.cur_y {
-        g.nodes[change.id].x = change.cur_x + change.delta_x;
-        g.nodes[change.id].y = change.cur_y + change.delta_y;
+    if g.nodes.get(&change.id).unwrap().x == change.cur_x && g.nodes.get(&change.id).unwrap().y == change.cur_y {
+        g.nodes.get_mut(&change.id).unwrap().x = change.cur_x + change.delta_x;
+        g.nodes.get_mut(&change.id).unwrap().y = change.cur_y + change.delta_y;
         Ok(g)
     } else {
         panic!("CARILHO")
@@ -19,9 +19,9 @@ fn apply_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph, 
 
 fn revert_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph, NodeChange> {
     /* TODO: Not thread safe */
-    if g.nodes[change.id].x == change.cur_x + change.delta_x && g.nodes[change.id].y == change.cur_y + change.delta_y {
-        g.nodes[change.id].x = change.cur_x;
-        g.nodes[change.id].y = change.cur_y;
+    if g.nodes.get(&change.id).unwrap().x == change.cur_x + change.delta_x && g.nodes.get(&change.id).unwrap().y == change.cur_y + change.delta_y {
+        g.nodes.get_mut(&change.id).unwrap().x = change.cur_x;
+        g.nodes.get_mut(&change.id).unwrap().y = change.cur_y;
         Ok(g)
     } else {
         panic!("CARILHO")
@@ -53,8 +53,8 @@ pub fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::T
     let y_change = rng.gen_range(low, high);
     NodeChange {
         id: to_change,
-        cur_x: g.nodes[to_change].x,
-        cur_y: g.nodes[to_change].y,
+        cur_x: g.nodes.get(&to_change).unwrap().x,
+        cur_y: g.nodes.get(&to_change).unwrap().y,
         delta_x: x_change,
         delta_y: y_change,
     }
@@ -66,15 +66,15 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
     ret.push(change);
     let mut dist_traveled_prev = 0.0;
     let mut dist_traveled_next = 0.0;
-    let mut cur_next = &g.nodes[change.id];
-    let mut cur_prev = &g.nodes[change.id];
+    let mut cur_next = g.nodes.get(&change.id).unwrap();
+    let mut cur_prev = g.nodes.get(&change.id).unwrap();
 
     loop {
         cur_next = cur_next.next(g);
         cur_prev = cur_prev.prev(g);
 
-        dist_traveled_next = dist_traveled_next + distance_between_nodes(&g.nodes[change.id], cur_next);
-        dist_traveled_prev = dist_traveled_prev + distance_between_nodes(&g.nodes[change.id], cur_prev);
+        dist_traveled_next = dist_traveled_next + distance_between_nodes(g.nodes.get(&change.id).unwrap(), cur_next);
+        dist_traveled_prev = dist_traveled_prev + distance_between_nodes(g.nodes.get(&change.id).unwrap(), cur_prev);
 
         let enough_next = dist_traveled_next > how_smooth;
         let enough_prev = dist_traveled_prev > how_smooth;
@@ -99,8 +99,8 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> H
     ret.insert(change.id, change);
     let mut dist_traveled_prev = 0;
     let mut dist_traveled_next = 0;
-    let mut cur_next = &g.nodes[change.id];
-    let mut cur_prev = &g.nodes[change.id];
+    let mut cur_next = g.nodes.get(&change.id).unwrap();
+    let mut cur_prev = g.nodes.get(&change.id).unwrap();
 
     loop {
         cur_next = cur_next.next(g);
@@ -128,7 +128,7 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> H
 }
 
 fn assert_acrossness(ts: &ThickSurface) {
-    let fst = &ts.layers[OUTER].nodes[0];
+    let (_, fst) = ts.layers[OUTER].nodes.iter().nth(0).unwrap();
     let mut j = fst.next(&ts.layers[OUTER]);
     println!("Going forward...");
     loop {
@@ -159,36 +159,79 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across:
     let actual_edge_id = available_edge_id(&ts.layers[layer_to_which_add]);
 
     for across in &node_addition.n.acrossness {
-        ts.layers[layer_across].nodes[*across].acrossness.push(actual_node_id);
+        ts.layers[layer_across].nodes.get_mut(across).unwrap().acrossness.push(actual_node_id);
     }
 
     println!("Adding node {:?}", node_addition);
-    let out_index = ts.layers[layer_to_which_add].nodes[node_addition.prev_id].out;
-    ts.layers[layer_to_which_add].edges[out_index].target = actual_node_id;
-    ts.layers[layer_to_which_add].nodes[node_addition.next_id].inc = actual_edge_id;
-    ts.layers[layer_to_which_add].nodes.push( Node {id: actual_node_id, ..node_addition.n});
-    ts.layers[layer_to_which_add].edges.push(EdgeSameSurface{id: actual_edge_id, ..node_addition.e});
+    let out_index = ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap().out;
+    ts.layers[layer_to_which_add].edges.get_mut(&out_index).unwrap().target = actual_node_id;
+    ts.layers[layer_to_which_add].nodes.get_mut(&node_addition.next_id).unwrap().inc = actual_edge_id;
+    ts.layers[layer_to_which_add].nodes.insert(actual_node_id,  Node {id: actual_node_id, ..node_addition.n});
+    ts.layers[layer_to_which_add].edges.insert(actual_edge_id, EdgeSameSurface{id: actual_edge_id, ..node_addition.e});
 
     println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})",
              node_addition.prev_id,
-             ts.layers[layer_to_which_add].nodes[node_addition.prev_id].x, ts.layers[layer_to_which_add].nodes[node_addition.prev_id].y,
+             ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap().y,
              node_addition.next_id,
-             ts.layers[layer_to_which_add].nodes[node_addition.next_id].x, ts.layers[layer_to_which_add].nodes[node_addition.next_id].y,
-             distance_between_nodes(&ts.layers[layer_to_which_add].nodes[node_addition.prev_id], &ts.layers[layer_to_which_add].nodes[node_addition.next_id]));
+             ts.layers[layer_to_which_add].nodes.get(&node_addition.next_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.next_id).unwrap().y,
+             distance_between_nodes(&ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap(), &ts.layers[layer_to_which_add].nodes.get(&node_addition.next_id).unwrap()));
     assert_acrossness(ts);
 }
+
+fn simple_delete (ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize){
+    let deleted = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap();
+    let deleteds_next = deleted.next(&ts.layers[layer_from_which_delete]);
+    let deleteds_prev = deleted.prev(&ts.layers[layer_from_which_delete]);
+    let deleteds_out_edge = deleted.out;
+    let deleteds_inc_edge = deleted.inc;
+    let deleteds_next_inc_edge = deleteds_next.inc;
+    let deleteds_prev_out_edge = deleteds_prev.out;
+
+    for acr in &deleted.acrossness {
+        let ind = {
+            let mut c = 0;
+            for i in &ts.layers[layer_across].nodes.get(acr).unwrap().acrossness {
+                if i == acr { break } else { c += 1; }
+            }
+            c
+        };
+    //    ts.layers[layer_across].nodes.get_mut(acr).unwrap().acrossness.try_remove(ind);
+    }
+
+    let (deleteds_next_id, deleteds_prev_id) = (deleteds_next.id, deleteds_prev.id);
+    ts.layers[layer_from_which_delete].edges.get_mut(&deleteds_next_inc_edge).unwrap().source = deleteds_prev.id;
+    ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_next_id).unwrap().inc = deleteds_next_inc_edge;
+    ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_prev_id).unwrap().out = deleteds_next_inc_edge;
+
+    // *Now just delete node and edges*
+}
+
+pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, (prev_id, next_id): (usize, usize)) {
+    fn not_the_only_across (j: &Node, g_across: &Graph) -> bool {
+        j.acrossness.iter().all(|x| {g_across.nodes.get(x).unwrap().acrossness.len() > 1})
+    }
+
+    let (prev, next) = (ts.layers[layer_from_which_delete].nodes.get(&prev_id).unwrap(), ts.layers[layer_from_which_delete].nodes.get(&next_id).unwrap());
+    if not_the_only_across(prev, &ts.layers[layer_across]) {
+        simple_delete(ts, layer_from_which_delete, layer_across,prev_id)
+    } else if not_the_only_across(next, &ts.layers[layer_across]) {
+        simple_delete(ts, layer_from_which_delete, layer_across, next_id)
+    }
+
+}
+
 
 fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &HashMap<usize, NodeChange>) -> (f64, f64) {
     (change.cur_x, change.cur_y)
 }
 
 fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_changes: &HashMap<usize, NodeChange>) -> (f64, f64) {
-    let changed_nodes_prev = other_graph.nodes[change.id].prev(other_graph);
+    let changed_nodes_prev = other_graph.nodes.get(&change.id).unwrap().prev(other_graph);
     let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
         Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
         None => (changed_nodes_prev.x, changed_nodes_prev.y)
     };
-    let changed_nodes_next = other_graph.nodes[change.id].next(other_graph);
+    let changed_nodes_next = other_graph.nodes.get(&change.id).unwrap().next(other_graph);
     let (next_ref_x, next_ref_y) = match other_graph_changes.get(&changed_nodes_next.id) {
         Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
         None => (changed_nodes_next.x, changed_nodes_next.y)
@@ -200,12 +243,12 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
 }
 
 fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeChange, other_graph_changes: &HashMap<usize, NodeChange>, compression_factor: f64) -> (f64, f64) {
-    let changed_nodes_prev = other_graph.nodes[change.id].prev(other_graph);
+    let changed_nodes_prev = other_graph.nodes.get(&change.id).unwrap().prev(other_graph);
     let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
         //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
         _ => (changed_nodes_prev.x, changed_nodes_prev.y)
     };
-    let changed_nodes_next = other_graph.nodes[change.id].next(other_graph);
+    let changed_nodes_next = other_graph.nodes.get(&change.id).unwrap().next(other_graph);
     let (next_ref_x, next_ref_y) = match other_graph_changes.get(&changed_nodes_next.id) {
         //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
         _ => (changed_nodes_next.x, changed_nodes_next.y)
@@ -213,8 +256,8 @@ fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeCha
     /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
     let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, next_ref_x, next_ref_y, prev_ref_x, prev_ref_y);
 
-    let node_across = &graph_across.nodes[other_graph.nodes[change.id].acrossness[0]];
-    let dist = distance_between_nodes(&node_across, &other_graph.nodes[change.id]);
+    let node_across = graph_across.nodes.get(&other_graph.nodes.get(&change.id).unwrap().acrossness[0]).unwrap();
+    let dist = distance_between_nodes(&node_across, other_graph.nodes.get(&change.id).unwrap());
 
     let (desired_pos_x, desired_pos_y) = ((change.cur_x + change.delta_x) + dir_x * dist * compression_factor, (change.cur_y + change.delta_y) + dir_y * dist  * compression_factor);
 
@@ -230,8 +273,8 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
         let (delta_x, delta_y) = direction_vector2(this_graph, other_graph, c, other_graph_changes, compression_factor);
 
         /* This should be done for each node across the changed one */
-        for acr_id in &other_graph.nodes[c.id].acrossness {
-            let node_across = &this_graph.nodes[*acr_id];
+        for acr_id in &other_graph.nodes.get(&c.id).unwrap().acrossness {
+            let node_across = this_graph.nodes.get(acr_id).unwrap();
             /*The line below normalizes this change: if a change is made to one of 3 of an inner node's acrosses, that change should only push it by 1/3 */
             let (delta_x, delta_y) = (delta_x / node_across.acrossness.len() as f64, delta_y / node_across.acrossness.len() as f64);
             ret.insert(node_across.id, NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, delta_x, delta_y});

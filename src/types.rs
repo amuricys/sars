@@ -1,4 +1,6 @@
 use vec1::Vec1;
+use std::collections::HashMap;
+
 pub type NodeIndex = usize;
 pub type EdgeIndex = usize;
 
@@ -22,11 +24,20 @@ pub struct Node {
 
 impl Node {
     pub(crate) fn next<'a>(&self, g: &'a Graph) -> &'a Node {
-        &g.nodes[g.edges[self.out].target]
+        if let Some(x) = g.edges.get(&self.out) {
+            &g.nodes.get(&x.target).unwrap_or_else(|| {panic!("node with no next()")})
+        } else {
+            panic!("node with no next()")
+        }
     }
 
     pub(crate) fn prev<'a>(&self, g: &'a Graph) -> &'a Node {
-        &g.nodes[g.edges[self.inc].source]
+        if let Some(x) = g.edges.get(&self.inc) {
+            &g.nodes.get(&x.source).unwrap_or_else(|| {panic!("node with no prev()")})
+        } else {
+            panic!("node with no prev()")
+        }
+
     }
 }
 
@@ -48,8 +59,8 @@ pub struct EdgeSameSurface {
 
 #[derive(Debug, Clone)]
 pub struct Graph {
-    pub nodes: Vec<Node>,
-    pub edges: Vec<EdgeSameSurface>,
+    pub nodes: HashMap<usize, Node>,
+    pub edges: HashMap<usize, EdgeSameSurface>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
