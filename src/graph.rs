@@ -6,25 +6,20 @@ use vec1::Vec1;
 use std::collections::HashMap;
 
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
-    let mut to_return: Graph = Graph { nodes: HashMap::new(), edges: HashMap::new() };
+    let mut to_return: Graph = Graph { nodes: HashMap::new() };
     let will_get_overridden_by_establish_corrs = 300;
     let num_points = node_coordinates.len();
-    to_return.nodes.insert(0, Node{id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, inc: num_points-1, out: 0, acrossness: Vec1::new(will_get_overridden_by_establish_corrs)});
+    to_return.nodes.insert(0, Node{id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, next_id: 1, prev_id: num_points-1, acrossness: Vec1::new(will_get_overridden_by_establish_corrs)});
     for i in 1..num_points {
-        let new_edge = EdgeSameSurface{source: i-1, target: i, id: i-1};
-        to_return.edges.insert(i-1,new_edge);
-
         let new_node = Node{id: i,
             x: node_coordinates[i].0,
             y: node_coordinates[i].1,
-            inc: i-1,
-            out: i,
+            next_id: (i+1) % num_points,
+            prev_id: i-1,
             acrossness: Vec1::new(will_get_overridden_by_establish_corrs)
         };
         to_return.nodes.insert(i, new_node);
     }
-    let new_edge = EdgeSameSurface{source: num_points - 1, target: 0, id: num_points - 1};
-    to_return.edges.insert(new_edge.id ,new_edge);
 
     to_return
 }
@@ -88,10 +83,9 @@ pub fn perimeter(g: &Graph) -> f64 {
 
 fn graph_to_lines(g: &Graph) -> Vec<(f64,f64,f64,f64)> {
     let mut ret = Vec::new();
-    for (_, edge) in &g.edges {
-        let node1 = g.nodes.get(&edge.source).unwrap();
-        let node2 = g.nodes.get(&edge.target).unwrap();
-        ret.push((node1.x, node1.y, node2.x, node2.y));
+    for (_, n) in &g.nodes {
+        let n_next = n.next(g);
+        ret.push((n.x, n.y, n_next.x, n_next.y));
     }
     ret
 }
@@ -110,11 +104,6 @@ pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
 fn available_node_id(g: &Graph) -> usize {
     /* Graph nodes should be Option(Node)s */
     g.nodes.len()
-}
-
-fn available_edge_id(g: &Graph) -> usize {
-    /* Graph edges should be Option(Edge)s */
-    g.edges.len()
 }
 
 fn find_acrossness(g_across: &Graph, prev: &Node, next: &Node) -> Vec1<NodeIndex> {
@@ -153,21 +142,15 @@ pub fn node_to_add(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, additi
        distance_between_nodes(prev, next) > addition_threshold {
 
         let new_node_id = available_node_id(g);
-        let new_edge_id = available_edge_id(g);
 
-        let new_edge = EdgeSameSurface {
-            id: new_edge_id,
-            source: new_node_id,
-            target: next.id,
-        };
         let new_node = Node {
             id: new_node_id,
             x:  (prev.x + next.x) / 2.0,
             y: (prev.y + next.y) / 2.0,
-            inc: g.edges.get(&prev.out).unwrap().id,
-            out: new_edge_id,
+            next_id: next.id,
+            prev_id: prev.id,
             acrossness: find_acrossness(g_across, prev, next)};
-        Some( NodeAddition { n: new_node, e: new_edge, next_id: next.id, prev_id: prev.id })
+        Some( NodeAddition { n: new_node  })
     } else { None }
 }
 

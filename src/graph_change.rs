@@ -148,60 +148,51 @@ fn available_node_id(g: &Graph) -> usize {
     g.nodes.len()
 }
 
-fn available_edge_id(g: &Graph) -> usize {
-    /* Graph edges should be Option(Edge)s */
-    g.edges.len()
-}
-
 
 pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across: usize, node_addition: NodeAddition) {
     let actual_node_id = available_node_id(&ts.layers[layer_to_which_add]);
-    let actual_edge_id = available_edge_id(&ts.layers[layer_to_which_add]);
 
     for across in &node_addition.n.acrossness {
         ts.layers[layer_across].nodes.get_mut(across).unwrap().acrossness.push(actual_node_id);
     }
 
     println!("Adding node {:?}", node_addition);
-    let out_index = ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap().out;
-    ts.layers[layer_to_which_add].edges.get_mut(&out_index).unwrap().target = actual_node_id;
-    ts.layers[layer_to_which_add].nodes.get_mut(&node_addition.next_id).unwrap().inc = actual_edge_id;
+    ts.layers[layer_to_which_add].nodes.get_mut(&node_addition.n.next_id).unwrap().prev_id = node_addition.n.id;
+    ts.layers[layer_to_which_add].nodes.get_mut(&node_addition.n.prev_id).unwrap().next_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes.insert(actual_node_id,  Node {id: actual_node_id, ..node_addition.n});
-    ts.layers[layer_to_which_add].edges.insert(actual_edge_id, EdgeSameSurface{id: actual_edge_id, ..node_addition.e});
 
     println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})",
-             node_addition.prev_id,
-             ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap().y,
-             node_addition.next_id,
-             ts.layers[layer_to_which_add].nodes.get(&node_addition.next_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.next_id).unwrap().y,
-             distance_between_nodes(&ts.layers[layer_to_which_add].nodes.get(&node_addition.prev_id).unwrap(), &ts.layers[layer_to_which_add].nodes.get(&node_addition.next_id).unwrap()));
+             node_addition.n.prev_id,
+             ts.layers[layer_to_which_add].nodes.get(&node_addition.n.prev_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.n.prev_id).unwrap().y,
+             node_addition.n.next_id,
+             ts.layers[layer_to_which_add].nodes.get(&node_addition.n.next_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.n.next_id).unwrap().y,
+             distance_between_nodes(&ts.layers[layer_to_which_add].nodes.get(&node_addition.n.prev_id).unwrap(), &ts.layers[layer_to_which_add].nodes.get(&node_addition.n.next_id).unwrap()));
     assert_acrossness(ts);
 }
 
 fn simple_delete (ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize){
-    let deleted = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap();
-    let deleteds_next = deleted.next(&ts.layers[layer_from_which_delete]);
-    let deleteds_prev = deleted.prev(&ts.layers[layer_from_which_delete]);
-    let deleteds_out_edge = deleted.out;
-    let deleteds_inc_edge = deleted.inc;
-    let deleteds_next_inc_edge = deleteds_next.inc;
-    let deleteds_prev_out_edge = deleteds_prev.out;
-
-    for acr in &deleted.acrossness {
-        let ind = {
-            let mut c = 0;
-            for i in &ts.layers[layer_across].nodes.get(acr).unwrap().acrossness {
-                if i == acr { break } else { c += 1; }
-            }
-            c
-        };
-    //    ts.layers[layer_across].nodes.get_mut(acr).unwrap().acrossness.try_remove(ind);
-    }
-
-    let (deleteds_next_id, deleteds_prev_id) = (deleteds_next.id, deleteds_prev.id);
-    ts.layers[layer_from_which_delete].edges.get_mut(&deleteds_next_inc_edge).unwrap().source = deleteds_prev.id;
-    ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_next_id).unwrap().inc = deleteds_next_inc_edge;
-    ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_prev_id).unwrap().out = deleteds_next_inc_edge;
+    // let deleted = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap();
+    // let deleteds_next = deleted.next(&ts.layers[layer_from_which_delete]);
+    // let deleteds_prev = deleted.prev(&ts.layers[layer_from_which_delete]);
+    // let deleteds_out_edge = deleted.prev_id;
+    // let deleteds_inc_edge = deleted.next_id;
+    // let deleteds_next_inc_edge = deleteds_next.next_id;
+    // let deleteds_prev_out_edge = deleteds_prev.prev_id;
+    //
+    // for acr in &deleted.acrossness {
+    //     let ind = {
+    //         let mut c = 0;
+    //         for i in &ts.layers[layer_across].nodes.get(acr).unwrap().acrossness {
+    //             if i == acr { break } else { c += 1; }
+    //         }
+    //         c
+    //     };
+    // //    ts.layers[layer_across].nodes.get_mut(acr).unwrap().acrossness.try_remove(ind);
+    // }
+    //
+    // let (deleteds_next_id, deleteds_prev_id) = (deleteds_next.id, deleteds_prev.id);
+    // ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_next_id).unwrap().next_id = deleteds_next_inc_edge;
+    // ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_prev_id).unwrap().prev_id = deleteds_next_inc_edge;
 
     // *Now just delete node and edges*
 }

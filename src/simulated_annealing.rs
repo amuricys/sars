@@ -134,8 +134,8 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
-    // add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
+    // delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
+    add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
 }
 
 pub fn step_with_manual_change(ts: &mut ThickSurface,

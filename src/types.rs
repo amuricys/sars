@@ -6,10 +6,7 @@ pub type EdgeIndex = usize;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodeAddition {
-    pub n: Node,
-    pub e: EdgeSameSurface,
-    pub next_id: usize,
-    pub prev_id: usize
+    pub n: Node
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -17,25 +14,26 @@ pub struct Node {
     pub id: NodeIndex,
     pub x: f64,
     pub y: f64,
-    pub inc: EdgeIndex,
-    pub out: EdgeIndex,
+    pub next_id: NodeIndex,
+    pub prev_id: NodeIndex,
     pub acrossness: Vec1<NodeIndex>,
 }
 
 impl Node {
     pub(crate) fn next<'a>(&self, g: &'a Graph) -> &'a Node {
-        if let Some(x) = g.edges.get(&self.out) {
-            &g.nodes.get(&x.target).unwrap_or_else(|| {panic!("node with no next()")})
+        if let Some(x) = g.nodes.get(&self.next_id) {
+            x
         } else {
-            panic!("node with no next()")
+            panic!(format!("node {:?}'s next_id is not in {:?}", self, g))
+
         }
     }
 
     pub(crate) fn prev<'a>(&self, g: &'a Graph) -> &'a Node {
-        if let Some(x) = g.edges.get(&self.inc) {
-            &g.nodes.get(&x.source).unwrap_or_else(|| {panic!("node with no prev()")})
+        if let Some(x) = g.nodes.get(&self.prev_id) {
+            x
         } else {
-            panic!("node with no prev()")
+            panic!(format!("node {:?}'s prev_id is not in {:?}", self, g))
         }
 
     }
@@ -50,17 +48,9 @@ pub struct NodeChange {
     pub delta_y: f64
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct EdgeSameSurface {
-    pub id: EdgeIndex,
-    pub target: NodeIndex,
-    pub source: NodeIndex,
-}
-
 #[derive(Debug, Clone)]
 pub struct Graph {
     pub nodes: HashMap<usize, Node>,
-    pub edges: HashMap<usize, EdgeSameSurface>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
