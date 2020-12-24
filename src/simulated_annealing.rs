@@ -21,13 +21,13 @@ pub fn debug_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f
 }
 
 fn manual_neighbor_changes(ts: &ThickSurface,
-                    node_change: NodeChange,
-                    layer_to_push: usize,
-                    layer_across: usize,
-                    how_smooth: usize,
-                    compression_factor: f64,
-                    low_high: (f64, f64),
-                    rng: &mut rand::rngs::ThreadRng) -> (HashMap<usize, NodeChange>, HashMap<usize, NodeChange>) {
+                           node_change: NodeChange,
+                           layer_to_push: usize,
+                           layer_across: usize,
+                           how_smooth: usize,
+                           compression_factor: f64,
+                           low_high: (f64, f64),
+                           rng: &mut rand::rngs::ThreadRng) -> (HashMap<usize, NodeChange>, HashMap<usize, NodeChange>) {
     let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], node_change.clone(), how_smooth);
     let smoothed_inner_changes = changes_from_other_graph(&ts.layers[layer_across], &ts.layers[layer_to_push], &smoothed_changes, compression_factor);
     (smoothed_changes, smoothed_inner_changes)
@@ -107,7 +107,7 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
     let graph_from_which_delete = &ts.layers[layer_from_which_delete];
 
     for (_, n) in &graph_from_which_delete.nodes {
-        match graph::node_to_delete(graph_from_which_delete,  n, n.next(&graph_from_which_delete), deletion_threshold) {
+        match graph::node_to_delete(graph_from_which_delete, n, n.next(&graph_from_which_delete), deletion_threshold) {
             Some(addition) => {
                 delete_node_(ts, layer_from_which_delete, layer_across, addition);
                 break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
@@ -123,9 +123,10 @@ pub fn step(ts: &mut ThickSurface,
             compression_factor: f64,
             how_smooth: usize,
             node_addition_threshold: f64,
+            node_deletion_threshold: f64,
             low_high: (f64, f64),
             rng: &mut rand::rngs::ThreadRng) {
-    let (outer_changes, inner_changes) = neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, low_high,rng);
+    let (outer_changes, inner_changes) = neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, low_high, rng);
 
     let energy_state = energy(ts, initial_gray_matter_area);
     apply_changes(&mut ts.layers[OUTER], &outer_changes);
@@ -133,20 +134,21 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
-    add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
+    delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
+    // add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
 }
 
 pub fn step_with_manual_change(ts: &mut ThickSurface,
-            node_change: NodeChange,
-            initial_gray_matter_area: f64,
-            temperature: f64,
-            compression_factor: f64,
-            how_smooth: usize,
-            node_addition_threshold: f64,
-            low_high: (f64, f64),
-            rng: &mut rand::rngs::ThreadRng) {
-    let (outer_changes, inner_changes) = manual_neighbor_changes(ts, node_change, OUTER, INNER, how_smooth, compression_factor, low_high,rng);
+                               node_change: NodeChange,
+                               initial_gray_matter_area: f64,
+                               temperature: f64,
+                               compression_factor: f64,
+                               how_smooth: usize,
+                               node_addition_threshold: f64,
+                               node_deletion_threshold: f64,
+                               low_high: (f64, f64),
+                               rng: &mut rand::rngs::ThreadRng) {
+    let (outer_changes, inner_changes) = manual_neighbor_changes(ts, node_change, OUTER, INNER, how_smooth, compression_factor, low_high, rng);
     let energy_state = energy(ts, initial_gray_matter_area);
     apply_changes(&mut ts.layers[OUTER], &outer_changes);
     apply_changes(&mut ts.layers[INNER], &inner_changes);

@@ -131,6 +131,7 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    compression_factor: f64,
                                    how_smooth: usize,
                                    node_addition_threshold: f64,
+                                   node_deletion_threshold: f64,
                                    low_high: (f64, f64)) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
     let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep};
@@ -150,9 +151,9 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
 
         state = next_state(e.press_args(), state);
         match state.step_type {
-            StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, low_high, rng),
-            StepType::OneAtATime => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, low_high, rng),
-            StepType::Automatic => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, low_high, rng),
+            StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
+            StepType::OneAtATime => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
+            StepType::Automatic => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
             StepType::NoStep => { }
         }
     }

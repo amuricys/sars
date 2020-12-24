@@ -23,6 +23,7 @@ struct Params {
     softness_factor: f64,    // <- how much should closeness of nodes in different surfaces impact pushes?
     how_smooth: usize,
     node_addition_threshold: f64,
+    node_deletion_threshold: f64,
     low_high: (f64, f64)
 }
 
@@ -37,6 +38,7 @@ fn toml_table_to_params(table: toml::Value) -> Params {
             softness_factor: m.get("softness_factor").unwrap().as_float().unwrap(),
             how_smooth: m.get("how_smooth").unwrap().as_integer().unwrap() as usize,
             node_addition_threshold: m.get("node_addition_threshold").unwrap().as_float().unwrap(),
+            node_deletion_threshold: m.get("node_deletion_threshold").unwrap().as_float().unwrap(),
             low_high: (m.get("low_high").unwrap().as_array().unwrap()[0].as_float().unwrap(), m.get("low_high").unwrap().as_array().unwrap()[1].as_float().unwrap())
         },
         _ => panic!("No key-value table found in parameters.toml")
@@ -61,6 +63,7 @@ fn real_main() {
                                           params.compression_factor,
                                           params.how_smooth,
                                           params.node_addition_threshold,
+                                          params.node_deletion_threshold,
                                           params.low_high)
 }
 
