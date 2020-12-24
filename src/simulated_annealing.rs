@@ -108,8 +108,8 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
 
     for (_, n) in &graph_from_which_delete.nodes {
         match graph::node_to_delete(graph_from_which_delete, n, n.next(&graph_from_which_delete), deletion_threshold) {
-            Some(addition) => {
-                delete_node_(ts, layer_from_which_delete, layer_across, addition);
+            Some(deletion) => {
+                delete_node_(ts, layer_from_which_delete, layer_across, deletion);
                 break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
             }
             None => {}
@@ -117,15 +117,17 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
     }
 }
 
+static mut THING: bool = false;
+
 pub fn step(ts: &mut ThickSurface,
-            initial_gray_matter_area: f64,
-            temperature: f64,
-            compression_factor: f64,
-            how_smooth: usize,
-            node_addition_threshold: f64,
-            node_deletion_threshold: f64,
-            low_high: (f64, f64),
-            rng: &mut rand::rngs::ThreadRng) {
+                   initial_gray_matter_area: f64,
+                   temperature: f64,
+                   compression_factor: f64,
+                   how_smooth: usize,
+                   node_addition_threshold: f64,
+                   node_deletion_threshold: f64,
+                   low_high: (f64, f64),
+                   rng: &mut rand::rngs::ThreadRng) {
     let (outer_changes, inner_changes) = neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, low_high, rng);
 
     let energy_state = energy(ts, initial_gray_matter_area);
@@ -134,8 +136,15 @@ pub fn step(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    // delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
-    add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
+    unsafe {
+        if !THING {
+            add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
+            THING = !THING;
+        } else {
+            delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
+            THING = !THING;
+        }
+    }
 }
 
 pub fn step_with_manual_change(ts: &mut ThickSurface,

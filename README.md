@@ -1,4 +1,4 @@
-Rewriting this thing: https://github.com/amuricys/sa-surface-2d in a language that doesn't give me a migraine.
+Rewriting this THING: https://github.com/amuricys/sa-surface-2d in a language that doesn't give me a migraine.
 
 Plus it's a good exercise!
 

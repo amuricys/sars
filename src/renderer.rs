@@ -12,6 +12,7 @@ use piston::{PressEvent, Button};
 use simulated_annealing::step_with_manual_change;
 
 type Color = [f32; 4];
+
 const BLACK: Color = [0.0, 0.0, 0.0, 0.0];
 const WHITE: Color = [1.0, 1.0, 1.0, 1.0];
 const PURPLE: Color = [0.8, 0.0, 0.8, 1.0];
@@ -25,10 +26,10 @@ pub struct Renderer {
     rotation: f64,  // Rotation for the square.
 }
 
-#[derive (Copy, Clone, PartialOrd, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
 pub struct Line {
     points: (f64, f64, f64, f64),
-    color: Color
+    color: Color,
 }
 
 impl Renderer {
@@ -91,7 +92,7 @@ pub enum StepType {
     ManualChange,
     OneAtATime,
     Automatic,
-    NoStep
+    NoStep,
 }
 
 #[derive(Debug, PartialOrd, PartialEq)]
@@ -106,7 +107,10 @@ fn next_state(event: Option<Button>, s: State) -> State {
         Some(piston::Button::Keyboard(piston::Key::Space)) => State {
             should_step: !s.should_step,
             one_at_a_time: !s.one_at_a_time,
-            step_type: match s.step_type { StepType::Automatic => StepType::NoStep, _ => StepType::Automatic }
+            step_type: match s.step_type {
+                StepType::Automatic => StepType::NoStep,
+                _ => StepType::Automatic
+            },
         },
         Some(piston::Button::Keyboard(piston::Key::N)) => State {
             step_type: if s.one_at_a_time { StepType::OneAtATime } else { s.step_type },
@@ -134,10 +138,11 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
                                    node_deletion_threshold: f64,
                                    low_high: (f64, f64)) {
     let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
-    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep};
+    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep };
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
-        let proto_change = NodeChange {id: 0, cur_x: ts.layers[OUTER].nodes.get(&0).unwrap().x, cur_y: ts.layers[OUTER].nodes.get(&0).unwrap().y, delta_x: -0.2, delta_y: 0.0};
+        let proto_change_id =  ts.layers[OUTER].nodes.keys().nth(0).unwrap();
+        let proto_change = NodeChange { id: *proto_change_id, cur_x: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().x, cur_y: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().y, delta_x: -0.2, delta_y: 0.0 };
 
         let lines = lines_from_thick_surface(ts);
 
@@ -154,7 +159,7 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
             StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
             StepType::OneAtATime => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
             StepType::Automatic => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
-            StepType::NoStep => { }
+            StepType::NoStep => {}
         }
     }
 }
@@ -165,7 +170,6 @@ pub fn render_playground(ts: &mut ThickSurface,
                          which_node: usize,
                          compression_factor: f64,
                          how_smooth: usize) {
-
     let mut events = Events::new(EventSettings::new());
     let (outer, inner) = simulated_annealing::debug_changes(ts, how_smooth, compression_factor, which_node, (0.0, -0.2));
     let should_apply = false;
@@ -190,7 +194,6 @@ pub fn render_playground(ts: &mut ThickSurface,
             renderer.update(&args);
         }
     }
-
 }
 
 pub fn setup_renderer() -> (Renderer, Window) {

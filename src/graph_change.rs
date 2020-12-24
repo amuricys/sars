@@ -1,8 +1,7 @@
 use types::*;
 use rand::Rng;
 use vector_2d_helpers::{bisecting_vector, norm};
-use graph::{distance_between_nodes};
-use graphics::modular_index::next;
+use graph::{distance_between_nodes, available_node_id};
 use piston::input::keyboard::Key::Out;
 use std::collections::HashMap;
 
@@ -44,7 +43,7 @@ pub(crate) fn revert_changes(g: &mut Graph, changes: &HashMap<usize, NodeChange>
 
 fn random_node(g: &Graph, rng: &mut rand::rngs::ThreadRng) -> NodeIndex {
     let annoyingly_needed_due_to_rusts_type_inference: usize = rng.gen();
-    annoyingly_needed_due_to_rusts_type_inference % g.nodes.len()
+    *g.nodes.keys().nth(annoyingly_needed_due_to_rusts_type_inference % g.nodes.len()).unwrap()
 }
 
 pub fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::ThreadRng) -> NodeChange {
@@ -127,7 +126,7 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> H
     ret
 }
 
-fn assert_acrossness(ts: &ThickSurface) {
+fn assert_cyclicness(ts: &ThickSurface) {
     let (_, fst) = ts.layers[OUTER].nodes.iter().nth(0).unwrap();
     let mut j = fst.next(&ts.layers[OUTER]);
     println!("Going forward...");
@@ -143,58 +142,72 @@ fn assert_acrossness(ts: &ThickSurface) {
     println!("yay")
 }
 
-fn available_node_id(g: &Graph) -> usize {
-    /* Graph nodes should be Option(Node)s */
-    g.nodes.len()
+fn assert_acrossness_for_node(g_across: &Graph, n: &Node) -> bool {
+    for acr in &n.acrossness {
+        match g_across.nodes.get(acr).unwrap().acrossness.iter().position(|&r| r == n.id) {
+            Some(_) => continue,
+            None => return false
+        }
+    }
+    true
 }
 
+fn assert_acrossness(ts: &ThickSurface) -> bool {
+    for (_, n) in &ts.layers[OUTER].nodes {
+        if !assert_acrossness_for_node(&ts.layers[INNER], n) {
+            println!("node {:?} is not in one of its correspondents' acrossness. graph across: {:?}", n, &ts.layers[INNER]);
+            panic!("");
+            return false
+        }
+    }
+    for (_, n) in &ts.layers[INNER].nodes {
+        if !assert_acrossness_for_node(&ts.layers[OUTER], n) {
+            println!("node {:?} is not in one of its correspondents' acrossness. graph across: {:?}", n, &ts.layers[INNER]);
+            panic!("");
+            return false
+        }
+    }
+    true
+}
 
 pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across: usize, node_addition: NodeAddition) {
-    let actual_node_id = available_node_id(&ts.layers[layer_to_which_add]);
-
     for across in &node_addition.n.acrossness {
-        ts.layers[layer_across].nodes.get_mut(across).unwrap().acrossness.push(actual_node_id);
+        let mut node_in_layer_across = ts.layers[layer_across].nodes.get_mut(across).unwrap();
+        node_in_layer_across.acrossness.push(node_addition.n.id);
     }
 
-    println!("Adding node {:?}", node_addition);
     ts.layers[layer_to_which_add].nodes.get_mut(&node_addition.n.next_id).unwrap().prev_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes.get_mut(&node_addition.n.prev_id).unwrap().next_id = node_addition.n.id;
-    ts.layers[layer_to_which_add].nodes.insert(actual_node_id,  Node {id: actual_node_id, ..node_addition.n});
+    ts.layers[layer_to_which_add].nodes.insert(node_addition.n.id,  Node {id: node_addition.n.id, ..node_addition.n});
 
-    println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})",
+    println!("adding between {} ({:.3}, {:.3}) and {} ({:.3}, {:.3}) (dist: {:.3})\n\n\n",
              node_addition.n.prev_id,
              ts.layers[layer_to_which_add].nodes.get(&node_addition.n.prev_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.n.prev_id).unwrap().y,
              node_addition.n.next_id,
              ts.layers[layer_to_which_add].nodes.get(&node_addition.n.next_id).unwrap().x, ts.layers[layer_to_which_add].nodes.get(&node_addition.n.next_id).unwrap().y,
              distance_between_nodes(&ts.layers[layer_to_which_add].nodes.get(&node_addition.n.prev_id).unwrap(), &ts.layers[layer_to_which_add].nodes.get(&node_addition.n.next_id).unwrap()));
+
     assert_acrossness(ts);
+    assert_cyclicness(ts);
 }
 
 fn simple_delete (ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize){
-    // let deleted = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap();
-    // let deleteds_next = deleted.next(&ts.layers[layer_from_which_delete]);
-    // let deleteds_prev = deleted.prev(&ts.layers[layer_from_which_delete]);
-    // let deleteds_out_edge = deleted.prev_id;
-    // let deleteds_inc_edge = deleted.next_id;
-    // let deleteds_next_inc_edge = deleteds_next.next_id;
-    // let deleteds_prev_out_edge = deleteds_prev.prev_id;
-    //
-    // for acr in &deleted.acrossness {
-    //     let ind = {
-    //         let mut c = 0;
-    //         for i in &ts.layers[layer_across].nodes.get(acr).unwrap().acrossness {
-    //             if i == acr { break } else { c += 1; }
-    //         }
-    //         c
-    //     };
-    // //    ts.layers[layer_across].nodes.get_mut(acr).unwrap().acrossness.try_remove(ind);
-    // }
-    //
-    // let (deleteds_next_id, deleteds_prev_id) = (deleteds_next.id, deleteds_prev.id);
-    // ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_next_id).unwrap().next_id = deleteds_next_inc_edge;
-    // ts.layers[layer_from_which_delete].nodes.get_mut(&deleteds_prev_id).unwrap().prev_id = deleteds_next_inc_edge;
+    let acrossness_copy = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap().acrossness.clone();
+    for acr in &acrossness_copy {
+        let ind = ts.layers[layer_across].nodes.get(acr).unwrap().acrossness.iter().position(|&r| r == deleted_id).unwrap();
+        ts.layers[layer_across].nodes.get_mut(&acr).unwrap().acrossness.try_remove(ind);
+    }
 
-    // *Now just delete node and edges*
+    let prev_id = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap().prev_id;
+    let next_id = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap().next_id;
+    ts.layers[layer_from_which_delete].nodes.get_mut(&prev_id).unwrap().next_id = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap().next_id;
+    ts.layers[layer_from_which_delete].nodes.get_mut(&next_id).unwrap().prev_id = ts.layers[layer_from_which_delete].nodes.get(&deleted_id).unwrap().prev_id;
+
+
+    ts.layers[layer_from_which_delete].nodes.remove(&deleted_id);
+
+    assert_acrossness(ts);
+    assert_cyclicness(ts);
 }
 
 pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, (prev_id, next_id): (usize, usize)) {
@@ -202,6 +215,7 @@ pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, layer
         j.acrossness.iter().all(|x| {g_across.nodes.get(x).unwrap().acrossness.len() > 1})
     }
 
+    /* TODO: We're only doing simple delete for now, as in deleting nodes that aren't the only ones across their correspondents */
     let (prev, next) = (ts.layers[layer_from_which_delete].nodes.get(&prev_id).unwrap(), ts.layers[layer_from_which_delete].nodes.get(&next_id).unwrap());
     if not_the_only_across(prev, &ts.layers[layer_across]) {
         simple_delete(ts, layer_from_which_delete, layer_across,prev_id)

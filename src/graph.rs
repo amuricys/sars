@@ -101,8 +101,14 @@ pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
     norm(n1.x - n2.x, n1.y - n2.y)
 }
 
-fn available_node_id(g: &Graph) -> usize {
+pub fn available_node_id(g: &Graph) -> usize {
     /* Graph nodes should be Option(Node)s */
+    for i in 0..g.nodes.len() {
+        match g.nodes.get(&i) {
+            None => return i,
+            Some(_) => continue,
+        }
+    }
     g.nodes.len()
 }
 
