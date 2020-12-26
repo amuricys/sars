@@ -10,10 +10,10 @@ const SOME_HUGE_FUCKIN_VALUE: f64 = 100_000_000.0;
 pub fn debug_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f64, which_node: usize, (x_change, y_change): (f64, f64)) -> (HashMap<usize, NodeChange>, HashMap<usize, NodeChange>) {
     let outer_change = NodeChange {
         id: which_node,
-        cur_x: ts.layers[OUTER].nodes.get(&which_node).unwrap().x,
-        cur_y: ts.layers[OUTER].nodes.get(&which_node).unwrap().y,
-        delta_x: ts.layers[OUTER].nodes.get(&which_node).unwrap().x + x_change,
-        delta_y: ts.layers[OUTER].nodes.get(&which_node).unwrap().y + y_change,
+        cur_x: ts.layers[OUTER].nodes[which_node].x,
+        cur_y: ts.layers[OUTER].nodes[which_node].y,
+        delta_x: ts.layers[OUTER].nodes[which_node].x + x_change,
+        delta_y: ts.layers[OUTER].nodes[which_node].y + y_change,
     };
     let smoothed_changes = smooth_change_out2(&ts.layers[OUTER], outer_change.clone(), how_smooth);
     let smoothed_inner_changes = changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &smoothed_changes, compression_factor);
@@ -92,7 +92,7 @@ fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, layer_acr
     let graph_to_which_add = &ts.layers[layer_to_add];
     let graph_across = &ts.layers[layer_across];
 
-    for (_, n) in &graph_to_which_add.nodes {
+    for n in &graph_to_which_add.nodes {
         match graph::node_to_add(graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold) {
             Some(addition) => {
                 add_node_(ts, layer_to_add, layer_across, addition);
@@ -106,7 +106,7 @@ fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, layer_acr
 fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deletion_threshold: f64) {
     let graph_from_which_delete = &ts.layers[layer_from_which_delete];
 
-    for (_, n) in &graph_from_which_delete.nodes {
+    for n in &graph_from_which_delete.nodes {
         match graph::node_to_delete(graph_from_which_delete, n, n.next(&graph_from_which_delete), deletion_threshold) {
             Some(deletion) => {
                 delete_node_(ts, layer_from_which_delete, layer_across, deletion);

@@ -21,21 +21,11 @@ pub struct Node {
 
 impl Node {
     pub(crate) fn next<'a>(&self, g: &'a Graph) -> &'a Node {
-        if let Some(x) = g.nodes.get(&self.next_id) {
-            x
-        } else {
-            panic!(format!("node {:?}'s next_id is not in {:?}", self, g))
-
-        }
+        &g.nodes[self.next_id]
     }
 
     pub(crate) fn prev<'a>(&self, g: &'a Graph) -> &'a Node {
-        if let Some(x) = g.nodes.get(&self.prev_id) {
-            x
-        } else {
-            panic!(format!("node {:?}'s prev_id is not in {:?}", self, g))
-        }
-
+        &g.nodes[self.prev_id]
     }
 }
 
@@ -50,7 +40,7 @@ pub struct NodeChange {
 
 #[derive(Debug, Clone)]
 pub struct Graph {
-    pub nodes: HashMap<usize, Node>,
+    pub nodes: Vec<Node>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

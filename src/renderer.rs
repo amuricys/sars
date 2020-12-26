@@ -69,7 +69,7 @@ fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
-        for (_, node) in &g.nodes {
+        for node in &g.nodes {
             lines.push(Line {
                 points: (node.x, node.y,
                          node.next(g).x, node.next(g).y),
@@ -77,9 +77,9 @@ fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
             });
             if i == OUTER {
                 /* Non empty vector so first element is "privileged" */
-                lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes.get(&node.acrossness[0]).unwrap().x, ts.layers[INNER].nodes.get(&node.acrossness[0]).unwrap().y), color: PURPLE });
+                lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[0]].x, ts.layers[INNER].nodes[node.acrossness[0]].y), color: PURPLE });
                 for acr_id in 1..node.acrossness.len() - 1 {
-                    lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes.get(&node.acrossness[acr_id]).unwrap().x, ts.layers[INNER].nodes.get(&node.acrossness[acr_id]).unwrap().y), color: GREEN })
+                    lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[acr_id]].x, ts.layers[INNER].nodes[node.acrossness[acr_id]].y), color: GREEN })
                 }
             }
         }
@@ -141,8 +141,7 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
     let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep };
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(window) {
-        let proto_change_id =  ts.layers[OUTER].nodes.keys().nth(0).unwrap();
-        let proto_change = NodeChange { id: *proto_change_id, cur_x: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().x, cur_y: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().y, delta_x: -0.2, delta_y: 0.0 };
+        let proto_change = NodeChange { id: 0, cur_x: ts.layers[OUTER].nodes[0].x, cur_y: ts.layers[OUTER].nodes[0].y, delta_x: -0.2, delta_y: 0.0 };
 
         let lines = lines_from_thick_surface(ts);
 
