@@ -4,12 +4,13 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 
-use types::{ThickSurface, OUTER, INNER, NodeChange, Node};
+use types::{ThickSurface, OUTER, INNER, NodeChange, Node, Params};
 use simulated_annealing;
 use graph_change;
 use graph;
 use piston::{PressEvent, Button};
 use simulated_annealing::step_with_manual_change;
+use recorders;
 
 type Color = [f32; 4];
 
@@ -65,7 +66,7 @@ impl Renderer {
     }
 }
 
-fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
+pub fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
@@ -87,12 +88,37 @@ fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
     lines
 }
 
+pub fn lines_from_thick_surface_ignoring_first_node(ts: &ThickSurface) -> Vec<Line> {
+    let mut lines = Vec::new();
+    for i in 0..ts.layers.len() {
+        let g = &ts.layers[i];
+        for (_, node) in &g.nodes {
+            if node.id != 0 && node.next(g).id != 0 {
+                lines.push(Line {
+                    points: (node.x, node.y,
+                             node.next(g).x, node.next(g).y),
+                    color: PINK,
+                });
+                if i == OUTER {
+                    /* Non empty vector so first element is "privileged" */
+                    lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes.get(&node.acrossness[0]).unwrap().x, ts.layers[INNER].nodes.get(&node.acrossness[0]).unwrap().y), color: PURPLE });
+                    for acr_id in 1..node.acrossness.len() - 1 {
+                        lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes.get(&node.acrossness[acr_id]).unwrap().x, ts.layers[INNER].nodes.get(&node.acrossness[acr_id]).unwrap().y), color: GREEN })
+                    }
+                }
+            }
+        }
+    }
+    lines
+}
+
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum StepType {
     ManualChange,
     OneAtATime,
     Automatic,
     NoStep,
+    Reset,
 }
 
 #[derive(Debug, PartialOrd, PartialEq)]
@@ -100,6 +126,7 @@ struct State {
     pub should_step: bool,
     pub one_at_a_time: bool,
     pub step_type: StepType,
+    pub temperature: f64,
 }
 
 fn next_state(event: Option<Button>, s: State) -> State {
@@ -111,6 +138,7 @@ fn next_state(event: Option<Button>, s: State) -> State {
                 StepType::Automatic => StepType::NoStep,
                 _ => StepType::Automatic
             },
+            ..s
         },
         Some(piston::Button::Keyboard(piston::Key::N)) => State {
             step_type: if s.one_at_a_time { StepType::OneAtATime } else { s.step_type },
@@ -120,6 +148,12 @@ fn next_state(event: Option<Button>, s: State) -> State {
             step_type: if s.one_at_a_time { StepType::ManualChange } else { s.step_type },
             ..s
         },
+        Some(piston::Button::Keyboard(piston::Key::R)) => State {
+            should_step: false,
+            one_at_a_time: true,
+            step_type: StepType::Reset,
+            temperature: 0.0
+        },
         _ => State {
             step_type: if !s.should_step { StepType::NoStep } else { s.step_type },
             ..s
@@ -127,24 +161,22 @@ fn next_state(event: Option<Button>, s: State) -> State {
     }
 }
 
-pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
+pub fn setup_optimization_and_loop<F>(ts: &mut ThickSurface,
                                    rng: &mut rand::rngs::ThreadRng,
                                    window: &mut Window,
                                    renderer: &mut Renderer,
-                                   initial_temperature: f64,
-                                   compression_factor: f64,
-                                   how_smooth: usize,
-                                   node_addition_threshold: f64,
-                                   node_deletion_threshold: f64,
-                                   low_high: (f64, f64)) {
-    let initial_gray_matter_area = graph::area(&ts.layers[OUTER]) - graph::area(&ts.layers[INNER]);
-    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep };
+                                   how_to_make_lines: F,
+                                   params: &Params)
+  where F: Fn(&ThickSurface) -> Vec<Line> {
+    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep, temperature: params.initial_temperature };
     let mut events = Events::new(EventSettings::new());
+    let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
+
     while let Some(e) = events.next(window) {
         let proto_change_id =  ts.layers[OUTER].nodes.keys().nth(0).unwrap();
         let proto_change = NodeChange { id: *proto_change_id, cur_x: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().x, cur_y: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().y, delta_x: -0.2, delta_y: 0.0 };
 
-        let lines = lines_from_thick_surface(ts);
+        let lines = how_to_make_lines(ts);
 
         if let Some(args) = e.render_args() {
             renderer.render(&args, &lines);
@@ -156,42 +188,15 @@ pub fn setup_optimization_and_loop(ts: &mut ThickSurface,
 
         state = next_state(e.press_args(), state);
         match state.step_type {
-            StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
-            StepType::OneAtATime => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
-            StepType::Automatic => simulated_annealing::step(ts, initial_gray_matter_area, initial_temperature, compression_factor, how_smooth, node_addition_threshold, node_deletion_threshold, low_high, rng),
+            StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, params.initial_gray_matter_area, state.temperature, params,  rng),
+            StepType::OneAtATime => simulated_annealing::step(ts,  params.initial_gray_matter_area, state.temperature, params, rng),
+            StepType::Automatic => simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, params, rng),
+            StepType::Reset => *ts = graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points),
             StepType::NoStep => {}
         }
-    }
-}
-
-pub fn render_playground(ts: &mut ThickSurface,
-                         window: &mut Window,
-                         renderer: &mut Renderer,
-                         which_node: usize,
-                         compression_factor: f64,
-                         how_smooth: usize) {
-    let mut events = Events::new(EventSettings::new());
-    let (outer, inner) = simulated_annealing::debug_changes(ts, how_smooth, compression_factor, which_node, (0.0, -0.2));
-    let should_apply = false;
-    while let Some(e) = events.next(window) {
-        let lines = lines_from_thick_surface(ts);
-
-        if let Some(key) = e.press_args() {
-            if should_apply {
-                graph_change::apply_changes(&mut ts.layers[OUTER], &outer);
-                graph_change::apply_changes(&mut ts.layers[INNER], &inner);
-            } else {
-                graph_change::revert_changes(&mut ts.layers[OUTER], &outer);
-                graph_change::revert_changes(&mut ts.layers[OUTER], &outer);
-            }
-        }
-
-        if let Some(args) = e.render_args() {
-            renderer.render(&args, &lines);
-        }
-
-        if let Some(args) = e.update_args() {
-            renderer.update(&args);
+        match &mut output_file {
+            Some(f) => recorders::record(ts, params, f),
+            None => {}
         }
     }
 }
