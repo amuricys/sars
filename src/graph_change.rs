@@ -139,7 +139,8 @@ fn assert_cyclicness(ts: &ThickSurface) {
         j = j.prev(&ts.layers[OUTER]);
         if j == fst { break; }
     }
-    println!("yay")
+    println!("yay");
+    println!("ts: {:?}", ts);
 }
 
 fn assert_acrossness_for_node(g_across: &Graph, n: &Node) -> bool {
@@ -191,36 +192,45 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across:
     assert_cyclicness(ts);
 }
 
-fn correct_acrossness(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize) {
-    
+fn swap_nodes(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize, last: &Node) {
+    /* Deleted node's position will now contain the last node */
+    let new_mix = Node {
+        id: deleted_id,
+        /* The if branches below are for: prev ---> del ---> last ---> last.next */
+        next_id: if deleted_id != last.next_id {last.next_id} else {ts.layers[layer_from_which_delete].nodes[deleted_id].next_id},
+        prev_id: if deleted_id != last.prev_id  {last.prev_id} else {ts.layers[layer_from_which_delete].nodes[deleted_id].prev_id},
+        acrossness: last.acrossness.clone(),
+        x: last.x,
+        y: last.y
+    };
+    /* The if branches below are for: prev ----> del/last ----> next. In this case the deleted node's prev, an undeleted one,
+       should "skip" the deleted one with the next_id. */
+    ts.layers[layer_from_which_delete].nodes[new_mix.next_id].prev_id = if deleted_id == last.id {new_mix.prev_id} else {deleted_id};
+    ts.layers[layer_from_which_delete].nodes[new_mix.prev_id].next_id = if deleted_id == last.id {new_mix.next_id} else {deleted_id};
+    ts.layers[layer_from_which_delete].nodes[deleted_id] = new_mix;
+
+    /* Clone for simplicity */
+    let deleted_acrossness = ts.layers[layer_from_which_delete].nodes[deleted_id].acrossness.clone();
+    let last_acrossness = last.acrossness.clone();
+    /* Make last's across nodes point to new id (the deleted node's id) */
+    for acr in last_acrossness {
+        let deleteds_index = ts.layers[layer_across].nodes[acr].acrossness.iter().position(|x| *x == last.id).unwrap();
+        ts.layers[layer_across].nodes[acr].acrossness[deleteds_index] = deleted_id;
+    }
+    /* Make the deleted node's acrossnesses "forget" about it by removing its index from their acrossness list. */
+    for acr in deleted_acrossness {
+        let deleteds_index = ts.layers[layer_across].nodes[acr].acrossness.iter().position(|x| *x == deleted_id).unwrap();
+        ts.layers[layer_across].nodes[acr].acrossness.try_remove(deleteds_index);
+    }
 }
 
 fn simple_delete(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize) {
-    println!("Deleting {:?}", ts.layers[layer_from_which_delete].nodes[deleted_id]);
-    /* Swap with last */
     let last = ts.layers[layer_from_which_delete].nodes.last().unwrap().clone();
-    println!("while last is {:?}", last);
 
-    /* Make last's acrossnesses point to deleted_id */
-    for acr in &last.acrossness {
-        let deleteds_index = ts.layers[layer_across].nodes[*acr].acrossness.iter().position(|x| *x == deleted_id).unwrap();
-        ts.layers[layer_across].nodes[*acr].acrossness.try_remove(deleteds_index);
-        ts.layers[layer_across].nodes[*acr].acrossness.try_remove(deleteds_index);
-
-    }
-    ts.layers[layer_from_which_delete].nodes[deleted_id].id = deleted_id;
-    ts.layers[layer_from_which_delete].nodes[deleted_id].x = last.x;
-    ts.layers[layer_from_which_delete].nodes[deleted_id].y = last.y;
-    ts.layers[layer_from_which_delete].nodes[deleted_id].acrossness = last.acrossness;
-    if deleted_id != last.next_id { ts.layers[layer_from_which_delete].nodes[deleted_id].next_id = last.next_id; };
-    if deleted_id !=  last.prev_id { ts.layers[layer_from_which_delete].nodes[deleted_id].prev_id =  last.prev_id };
-
-    ts.layers[layer_from_which_delete].nodes[last.prev_id].next_id = deleted_id;
-    ts.layers[layer_from_which_delete].nodes[last.next_id].prev_id = deleted_id;
-
+    /* This fn does mutable magic on the last node, the deleted node, and all involved acrossnesses, and isolates the last node for deletion */
+    swap_nodes(ts, layer_from_which_delete, layer_across, deleted_id, &last);
 
     ts.layers[layer_from_which_delete].nodes.remove(last.id);
-    println!("Ts is now {:?}", ts.layers[layer_from_which_delete]);
 
     assert_acrossness(ts);
     assert_cyclicness(ts);
