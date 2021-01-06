@@ -53,7 +53,11 @@ pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) ->
     let mut outer = circular_graph(0.0, 0.0, radius, num_points);
     let mut inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
     establish_correspondences(&mut outer, &mut inner);
-    ThickSurface { layers: Vec::from([outer, inner]), edges: Vec::new() }
+    ThickSurface{layers: Vec::from([outer, inner])}
+}
+
+pub fn gray_matter_area(ts: &ThickSurface) -> f64 {
+    area(&ts.layers[OUTER]) - area(&ts.layers[INNER])
 }
 
 pub fn area(g: &Graph) -> f64 {

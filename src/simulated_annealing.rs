@@ -1,4 +1,4 @@
-use types::{ThickSurface, NodeChange, OUTER, INNER};
+use types::{ThickSurface, NodeChange, OUTER, INNER, Params, NodeChangeMap};
 use graph_change::{apply_changes, revert_changes, random_change, smooth_change_out2, changes_from_other_graph, add_node_, delete_node_};
 use graph;
 use vector_2d_helpers::{lines_intersection};
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 const SOME_HUGE_FUCKIN_VALUE: f64 = 100_000_000.0;
 
-pub fn debug_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f64, which_node: usize, (x_change, y_change): (f64, f64)) -> (HashMap<usize, NodeChange>, HashMap<usize, NodeChange>) {
+pub fn debug_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f64, which_node: usize, (x_change, y_change): (f64, f64)) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = NodeChange {
         id: which_node,
         cur_x: ts.layers[OUTER].nodes[which_node].x,
@@ -27,7 +27,7 @@ fn manual_neighbor_changes(ts: &ThickSurface,
                            how_smooth: usize,
                            compression_factor: f64,
                            low_high: (f64, f64),
-                           rng: &mut rand::rngs::ThreadRng) -> (HashMap<usize, NodeChange>, HashMap<usize, NodeChange>) {
+                           rng: &mut rand::rngs::ThreadRng) -> (NodeChangeMap, NodeChangeMap) {
     let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], node_change.clone(), how_smooth);
     let smoothed_inner_changes = changes_from_other_graph(&ts.layers[layer_across], &ts.layers[layer_to_push], &smoothed_changes, compression_factor);
     (smoothed_changes, smoothed_inner_changes)
@@ -39,14 +39,14 @@ fn neighbor_changes(ts: &ThickSurface,
                     how_smooth: usize,
                     compression_factor: f64,
                     low_high: (f64, f64),
-                    rng: &mut rand::rngs::ThreadRng) -> (HashMap<usize, NodeChange>, HashMap<usize, NodeChange>) {
+                    rng: &mut rand::rngs::ThreadRng) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = random_change(&ts.layers[layer_to_push], low_high, rng);
     let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], outer_change.clone(), how_smooth);
     let smoothed_inner_changes = changes_from_other_graph(&ts.layers[layer_across], &ts.layers[layer_to_push], &smoothed_changes, compression_factor);
     (smoothed_changes, smoothed_inner_changes)
 }
 
-fn energy(ts: &ThickSurface, initial_gray_matter_area: f64) -> f64 {
+pub fn energy(ts: &ThickSurface, initial_gray_matter_area: f64) -> f64 {
     let white_matter = graph::area(&ts.layers[INNER]);
     let gray_matter = (graph::area(&ts.layers[OUTER]) - white_matter).abs();
     let gray_matter_stretch = (gray_matter - initial_gray_matter_area).abs();
@@ -66,8 +66,8 @@ fn probability(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64
 }
 
 fn intersection_effects(ts: &mut ThickSurface,
-                        outer_changes: &HashMap<usize, NodeChange>,
-                        inner_changes: &HashMap<usize, NodeChange>,
+                        outer_changes: &NodeChangeMap,
+                        inner_changes: &NodeChangeMap,
                         energy_state: f64,
                         energy_neighbor: f64,
                         temperature: f64,
@@ -120,14 +120,18 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
 static mut THING: bool = false;
 
 pub fn step(ts: &mut ThickSurface,
-                   initial_gray_matter_area: f64,
-                   temperature: f64,
-                   compression_factor: f64,
-                   how_smooth: usize,
-                   node_addition_threshold: f64,
-                   node_deletion_threshold: f64,
-                   low_high: (f64, f64),
-                   rng: &mut rand::rngs::ThreadRng) {
+            initial_gray_matter_area: f64,
+            temperature: f64,
+            params: &Params,
+            rng: &mut rand::rngs::ThreadRng) -> Vec<NodeChangeMap> {
+
+    let how_smooth = params.how_smooth;
+    let compression_factor = params.compression_factor;
+    let low_high = params.low_high;
+    let node_addition_threshold = params.node_addition_threshold;
+    let node_deletion_threshold = params.node_deletion_threshold;
+
+
     let (outer_changes, inner_changes) = neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, low_high, rng);
 
     let energy_state = energy(ts, initial_gray_matter_area);
@@ -139,24 +143,28 @@ pub fn step(ts: &mut ThickSurface,
     unsafe {
         if !THING {
             add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
+            add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
             THING = !THING;
         } else {
             delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
+            delete_single_node_effects(ts, INNER, OUTER, node_deletion_threshold);
             THING = !THING;
         }
     }
+    vec![outer_changes, inner_changes]
 }
 
 pub fn step_with_manual_change(ts: &mut ThickSurface,
                                node_change: NodeChange,
                                initial_gray_matter_area: f64,
                                temperature: f64,
-                               compression_factor: f64,
-                               how_smooth: usize,
-                               node_addition_threshold: f64,
-                               node_deletion_threshold: f64,
-                               low_high: (f64, f64),
-                               rng: &mut rand::rngs::ThreadRng) {
+                               params: &Params,
+                               rng: &mut rand::rngs::ThreadRng) -> Vec<NodeChangeMap> {
+    let how_smooth = params.how_smooth;
+    let compression_factor = params.compression_factor;
+    let low_high = params.low_high;
+    let node_addition_threshold = params.node_addition_threshold;
+
     let (outer_changes, inner_changes) = manual_neighbor_changes(ts, node_change, OUTER, INNER, how_smooth, compression_factor, low_high, rng);
     let energy_state = energy(ts, initial_gray_matter_area);
     apply_changes(&mut ts.layers[OUTER], &outer_changes);
@@ -166,4 +174,6 @@ pub fn step_with_manual_change(ts: &mut ThickSurface,
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
     add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
     add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
+
+    vec![outer_changes, inner_changes]
 }

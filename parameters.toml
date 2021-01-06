@@ -8,3 +8,4 @@
 "node_addition_threshold" = 0.00000000000005
 "node_deletion_threshold" = 10000.0
 "low_high" = [-0.2, 0.2]
+"recorders" = []
