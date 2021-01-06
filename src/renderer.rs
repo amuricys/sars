@@ -4,13 +4,14 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 
-use types::{ThickSurface, OUTER, INNER, NodeChange, Node, Params};
+use types::{ThickSurface, OUTER, INNER, NodeChange, Node, Params, NodeChangeMap};
 use simulated_annealing;
 use graph_change;
 use graph;
 use piston::{PressEvent, Button};
 use simulated_annealing::step_with_manual_change;
 use recorders;
+use std::collections::HashMap;
 
 type Color = [f32; 4];
 
@@ -18,6 +19,7 @@ const BLACK: Color = [0.0, 0.0, 0.0, 0.0];
 const WHITE: Color = [1.0, 1.0, 1.0, 1.0];
 const PURPLE: Color = [0.8, 0.0, 0.8, 1.0];
 const PINK: Color = [1.0, 0.4, 1.0, 1.0];
+const BLUE: Color = [0.2, 0.2, 1.0, 1.0];
 const GREEN: Color = [0.2, 1.0, 0.2, 1.0];
 
 
@@ -88,7 +90,8 @@ pub fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
     lines
 }
 
-pub fn lines_from_thick_surface_ignoring_first_node(ts: &ThickSurface) -> Vec<Line> {
+pub fn lines_playground(ts: &ThickSurface, last_changes: &Vec<NodeChangeMap>) -> Vec<Line> {
+    /* Ignores first node and renders node changes for every layer of node changes */
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
@@ -107,6 +110,15 @@ pub fn lines_from_thick_surface_ignoring_first_node(ts: &ThickSurface) -> Vec<Li
                     }
                 }
             }
+        }
+    }
+    for l in last_changes {
+        for (_n, change) in l {
+            lines.push(Line {
+                points: (change.cur_x, change.cur_y,
+                         change.cur_x + change.delta_x, change.cur_y + change.delta_y),
+                color: BLUE
+            })
         }
     }
     lines
@@ -162,21 +174,23 @@ fn next_state(event: Option<Button>, s: State) -> State {
 }
 
 pub fn setup_optimization_and_loop<F>(ts: &mut ThickSurface,
-                                   rng: &mut rand::rngs::ThreadRng,
-                                   window: &mut Window,
-                                   renderer: &mut Renderer,
-                                   how_to_make_lines: F,
-                                   params: &Params)
-  where F: Fn(&ThickSurface) -> Vec<Line> {
+                                      rng: &mut rand::rngs::ThreadRng,
+                                      window: &mut Window,
+                                      renderer: &mut Renderer,
+                                      how_to_make_lines: F,
+                                      params: &Params)
+  where F: Fn(&ThickSurface, &Vec<NodeChangeMap>) -> Vec<Line> {
     let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep, temperature: params.initial_temperature };
     let mut events = Events::new(EventSettings::new());
     let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
+    let mut changeset = vec![];
+
 
     while let Some(e) = events.next(window) {
         let proto_change_id =  ts.layers[OUTER].nodes.keys().nth(0).unwrap();
         let proto_change = NodeChange { id: *proto_change_id, cur_x: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().x, cur_y: ts.layers[OUTER].nodes.get(proto_change_id).unwrap().y, delta_x: -0.2, delta_y: 0.0 };
 
-        let lines = how_to_make_lines(ts);
+        let lines = how_to_make_lines(ts, &changeset);
 
         if let Some(args) = e.render_args() {
             renderer.render(&args, &lines);
@@ -188,10 +202,10 @@ pub fn setup_optimization_and_loop<F>(ts: &mut ThickSurface,
 
         state = next_state(e.press_args(), state);
         match state.step_type {
-            StepType::ManualChange => simulated_annealing::step_with_manual_change(ts, proto_change, params.initial_gray_matter_area, state.temperature, params,  rng),
-            StepType::OneAtATime => simulated_annealing::step(ts,  params.initial_gray_matter_area, state.temperature, params, rng),
-            StepType::Automatic => simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, params, rng),
-            StepType::Reset => *ts = graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points),
+            StepType::ManualChange => changeset = simulated_annealing::step_with_manual_change(ts, proto_change, params.initial_gray_matter_area, state.temperature, params,  rng),
+            StepType::OneAtATime => changeset = simulated_annealing::step(ts,  params.initial_gray_matter_area, state.temperature, params, rng),
+            StepType::Automatic => changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, params, rng),
+            StepType::Reset => *ts = {changeset = vec![]; graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points)},
             StepType::NoStep => {}
         }
         match &mut output_file {

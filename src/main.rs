@@ -57,7 +57,7 @@ fn real_main() {
                                           &mut rng,
                                           &mut window,
                                           &mut renderer,
-                                          renderer::lines_from_thick_surface,
+                                          | ts,_ | { renderer::lines_from_thick_surface(ts) },
                                           &params)
 }
 
@@ -75,10 +75,10 @@ fn playground_main() {
                                           &mut rng,
                                           &mut window,
                                           &mut renderer,
-                                          renderer::lines_from_thick_surface_ignoring_first_node,
+                                          renderer::lines_playground,
                                           &params)}
 
 fn main() {
-    playground_main()
-    //real_main()
+    //playground_main()
+    real_main()
 }

@@ -8,4 +8,4 @@
 "node_addition_threshold" = 0.05
 "node_deletion_threshold" = 0.03
 "low_high" = [-0.2, 0.2]
-"recorders" = ["energy", "inner area"]
+"recorders" = []

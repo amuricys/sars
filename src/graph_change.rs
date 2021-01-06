@@ -27,14 +27,14 @@ fn revert_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph,
     }
 }
 
-pub(crate) fn apply_changes(g: &mut Graph, changes: &HashMap<usize, NodeChange>) {
+pub(crate) fn apply_changes(g: &mut Graph, changes: &NodeChangeMap) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for (_, change) in changes {
         apply_change(g, &change);
     }
 }
 
-pub(crate) fn revert_changes(g: &mut Graph, changes: &HashMap<usize, NodeChange>) {
+pub(crate) fn revert_changes(g: &mut Graph, changes: &NodeChangeMap) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for (_, change) in changes {
         revert_change(g, &change);
@@ -93,7 +93,7 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
     ret
 }
 
-pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> HashMap<usize, NodeChange> {
+pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> NodeChangeMap {
     let mut ret = HashMap::new();
     ret.insert(change.id, change);
     let mut dist_traveled_prev = 0;
@@ -226,11 +226,11 @@ pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, layer
 }
 
 
-fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &HashMap<usize, NodeChange>) -> (f64, f64) {
+fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &NodeChangeMap) -> (f64, f64) {
     (change.cur_x, change.cur_y)
 }
 
-fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_changes: &HashMap<usize, NodeChange>) -> (f64, f64) {
+fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_changes: &NodeChangeMap) -> (f64, f64) {
     let changed_nodes_prev = other_graph.nodes.get(&change.id).unwrap().prev(other_graph);
     let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
         Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
@@ -247,7 +247,7 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
     (- dir_x * norm(change.delta_x, change.delta_y), - dir_y * norm(change.delta_x, change.delta_y))
 }
 
-fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeChange, other_graph_changes: &HashMap<usize, NodeChange>, compression_factor: f64) -> (f64, f64) {
+fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeChange, other_graph_changes: &NodeChangeMap, compression_factor: f64) -> (f64, f64) {
     let changed_nodes_prev = other_graph.nodes.get(&change.id).unwrap().prev(other_graph);
     let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
         //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
@@ -269,10 +269,10 @@ fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeCha
     (- node_across.x + desired_pos_x, - node_across.y + desired_pos_y)
 }
 
-/* TODO: other_graph_changes should become a HashMap<usize, NodeChange>. This allows it to find the soon-to-be changed
+/* TODO: other_graph_changes should become a NodeChangeMap. This allows it to find the soon-to-be changed
     versions of the outer changed nodes, calculate what the delta of the nodes across is in relation to _that_ position,
     and then push it in that direction with weight (1 / acrossness_len) */
-pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_graph_changes: &HashMap<usize, NodeChange>, compression_factor: f64) -> HashMap<usize, NodeChange> {
+pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_graph_changes: &NodeChangeMap, compression_factor: f64) -> NodeChangeMap {
     let mut ret = HashMap::new();
     for (_, c) in other_graph_changes {
         let (delta_x, delta_y) = direction_vector2(this_graph, other_graph, c, other_graph_changes, compression_factor);

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 pub type NodeIndex = usize;
 pub type EdgeIndex = usize;
+pub type NodeChangeMap = HashMap<usize, NodeChange>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodeAddition {
