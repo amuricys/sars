@@ -30,14 +30,14 @@ fn revert_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph,
 pub(crate) fn apply_changes(g: &mut Graph, changes: &NodeChangeMap) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for (_, change) in changes {
-        //apply_change(g, &change);
+        apply_change(g, &change);
     }
 }
 
 pub(crate) fn revert_changes(g: &mut Graph, changes: &NodeChangeMap) {
     /* TODO: This should be atomic if the callers are to be concurrent */
     for (_, change) in changes {
-        //revert_change(g, &change);
+        revert_change(g, &change);
     }
 }
 
