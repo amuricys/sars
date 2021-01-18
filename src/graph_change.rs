@@ -134,7 +134,7 @@ fn assert_cyclicness(ts: &ThickSurface) {
         j = j.next(&ts.layers[OUTER]);
         if j == fst { break; }
     }
-    println!("k didnt fuck it up. Going backward...");
+    println!("k didnt break it. Going backward...");
     loop {
         j = j.prev(&ts.layers[OUTER]);
         if j == fst { break; }

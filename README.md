@@ -37,7 +37,7 @@ in
 fn probability(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64 {
     if temperature < 0.0 {
         if energy_neighbor < energy_state { 1.0 } else { 0.0 }
-    } else if temperature >= SOME_HUGE_FUCKIN_VALUE {
+    } else if temperature >= INFINITY {
         1.0
     } else {
         ((energy_state - energy_neighbor) / temperature).exp()
@@ -59,20 +59,15 @@ below showcases what happens with a randomly selected node in a given iteration.
 A node's neighbors are pushed in the same direction it was, with decreasing intensity based on how far from it
 they are. Smoothness is an integer number that determines how many nodes will be "smoothed"; so the example in the picture
 shows a simulation with smoothness set to 2. lower smoothness values tend to lead to more "gyrified" but more jagged and "spiky" simulations.
-2. **forceOffsetRange**; Defines the numerical range in the XY plane a node can be pushed in. Example: if set to
+2. **low_high**; Defines the numerical range in the XY plane a node can be pushed in. Example: if set to
 0.066, the maximum alteration to a node's coordinates is (0.033, 0.033) and the minimum (-0.033, -0.033).
-3. **thickness**; the initial thickness of the surface. Every element in the `thicknesses` array described above is
+3. **initial_thickness**; the initial thickness of the surface. Every element in the `thicknesses` array described above is
 set to this value in the beginning of the simulation. The number means *multiplication of radius*, so a thick surface with
 thickness 1.0 has no inner surface area.
-4. **points**; Number of nodes in the outer and inner polygons. Higher numbers mean smoother-looking simulations, but
+4. **initial_num_points**; Number of nodes in the outer and inner polygons. Higher numbers mean smoother-looking simulations, but
 also slower ones.
-5. **diffPow**, **diffMul**, **areaPow** and **areaMul**; the variables described in the energy function's pseudocode above.
-They are dimensionless and are all set to 1.0 by default.
-6. **multiProb**; the probability, after selecting a random node, that another random node will be selected to be
-altered *in the same iteration*. So if this is set to 0.5, the probability that 3 random nodes will be picked in the same
-iteration to be altered and considered part of the same neighbor is 1 * 0.5 * 0.5 (1 first because at least one node is always selected). Set
-to 0 by default.
-7. **tempProb**; unused.
-8. **Last but not least, compression**; An important parameter that describes how the surface stretches as it's pulled
+5. **Last but not least, compression**; An important parameter that describes how the surface stretches as it's pulled
 and pushed. If a node is pulled away from its inner correspondent (the first node altered is always the outer one),
 then its thickness is *multiplied* by this value. If it's pushed towards its inner correspondent, it is *divided* by this value. 
+6. **node_addition_threshold**; the distance between nodes under which nodes will be added to the system.
+7. **node_deletion_threshold**; the distance between nodes under which nodes will be deleted from the system - meaning they'll be merged into one.

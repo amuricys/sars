@@ -5,7 +5,7 @@ use vector_2d_helpers::{lines_intersection};
 use rand::Rng;
 use std::collections::HashMap;
 
-const SOME_HUGE_FUCKIN_VALUE: f64 = 100_000_000.0;
+const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
 
 pub fn debug_changes(ts: &ThickSurface, how_smooth: usize, compression_factor: f64, which_node: usize, (x_change, y_change): (f64, f64)) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = NodeChange {
@@ -58,7 +58,7 @@ pub fn energy(ts: &ThickSurface, initial_gray_matter_area: f64) -> f64 {
 fn probability(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64 {
     if temperature < 0.0 {
         if energy_neighbor < energy_state { 1.0 } else { 0.0 }
-    } else if temperature >= SOME_HUGE_FUCKIN_VALUE {
+    } else if temperature >= PRACTICALLY_INFINITY {
         1.0
     } else {
         ((energy_state - energy_neighbor) / temperature).exp()
