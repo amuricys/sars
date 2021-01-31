@@ -9,7 +9,7 @@ pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
     let mut to_return: Graph = Graph { nodes: Vec::new() };
     let will_get_overridden_by_establish_corrs = 300;
     let num_points = node_coordinates.len();
-    to_return.nodes.push(Node { id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, next_id: 1, prev_id: num_points - 1, acrossness: Vec1::new(will_get_overridden_by_establish_corrs) });
+    to_return.nodes.push(Node { id: 0, x: node_coordinates[0].0, y: node_coordinates[0].1, next_id: 1, prev_id: num_points - 1});
     for i in 1..num_points {
         let new_node = Node {
             id: i,
@@ -17,7 +17,6 @@ pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
             y: node_coordinates[i].1,
             next_id: (i + 1) % num_points,
             prev_id: i - 1,
-            acrossness: Vec1::new(will_get_overridden_by_establish_corrs),
         };
         to_return.nodes.push(new_node);
     }
@@ -36,13 +35,6 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
     cyclic_graph_from_coords(&circular_coords)
 }
 
-pub fn establish_correspondences(outer: &mut Graph, inner: &mut Graph) {
-    for i in 0..outer.nodes.len() {
-        outer.nodes[i].acrossness[0] = i;
-        inner.nodes[i].acrossness[0] = i;
-    }
-}
-
 pub fn debug_straight_surface(num_points: usize) -> ThickSurface {
     panic!("Will make it soon");
     // establish_correspondences(&mut outer, &mut inner);
@@ -52,7 +44,6 @@ pub fn debug_straight_surface(num_points: usize) -> ThickSurface {
 pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
     let mut outer = circular_graph(0.0, 0.0, radius, num_points);
     let mut inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
-    establish_correspondences(&mut outer, &mut inner);
     ThickSurface{layers: Vec::from([outer, inner])}
 }
 
@@ -110,39 +101,7 @@ pub fn available_node_id(g: &Graph) -> usize {
     g.nodes.len()
 }
 
-fn find_acrossness(g_across: &Graph, prev: &Node, next: &Node) -> Vec1<NodeIndex> {
-    fn check_common_neighborhood(g: &Graph, n0: usize, n1: usize) -> bool {
-        g.nodes[n0].next(g).id == n1 ||
-            g.nodes[n0].prev(g).id == n1 ||
-            g.nodes[n1].prev(g).id == n0 ||
-            g.nodes[n1].prev(g).id == n0
-    }
-    for ac0 in &prev.acrossness {
-        for ac1 in &next.acrossness {
-            if ac0 == ac1 {
-                return Vec1::new(*ac0);
-            }
-            if check_common_neighborhood(g_across, *ac0, *ac1) {
-                let mut ret = Vec1::new(*ac0);
-                ret.push(*ac1);
-                return ret;
-            }
-        }
-    }
-    for ac0 in &prev.acrossness {
-        for ac1 in &next.acrossness {
-            println!("Checking if {} and {} are equal...", ac0, ac1);
-            println!("Checking if {} and {} have neighbors in common:", ac0, ac1);
-            println!("\t{}'s next(): {:?}; prev(): {:?}", ac0, g_across.nodes[*ac0].next(g_across).id, g_across.nodes[*ac0].prev(g_across).id);
-            println!("\t{}'s next(): {:?}; prev(): {:?}", ac1, g_across.nodes[*ac1].next(g_across).id, g_across.nodes[*ac1].prev(g_across).id);
-        }
-    }
-    println!("prev's across: {:?}", prev.acrossness);
-    println!("next's across: {:?}", next.acrossness);
-    panic!("Could not find shit.")
-}
-
-pub fn node_to_add(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
+pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64) -> Option<NodeAddition> {
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
         distance_between_nodes(prev, next) > addition_threshold {
         let new_node_id = available_node_id(g);
@@ -153,7 +112,6 @@ pub fn node_to_add(g: &Graph, g_across: &Graph, prev: &Node, next: &Node, additi
             y: (prev.y + next.y) / 2.0,
             next_id: next.id,
             prev_id: prev.id,
-            acrossness: find_acrossness(g_across, prev, next),
         };
         Some(NodeAddition { n: new_node })
     } else { None }
@@ -184,17 +142,6 @@ mod tests {
             walker = walker.next(&test_circ);
         }
         assert_eq!(*walker, first);
-    }
-
-    #[test]
-    fn correspondences() {
-        // TODO: This should be generated
-        let size_of_test_circ = 4;
-
-        let test_circ = circular_thick_surface(1.0, 0.3, size_of_test_circ);
-        for n in &test_circ.layers[OUTER].nodes {
-            assert_eq!(n.acrossness[0], n.id)
-        }
     }
 
     #[test]

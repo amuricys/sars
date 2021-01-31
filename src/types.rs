@@ -16,8 +16,7 @@ pub struct Node {
     pub x: f64,
     pub y: f64,
     pub next_id: NodeIndex,
-    pub prev_id: NodeIndex,
-    pub acrossness: Vec1<NodeIndex>,
+    pub prev_id: NodeIndex
 }
 
 impl Node {

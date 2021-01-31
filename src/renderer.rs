@@ -79,11 +79,7 @@ pub fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
                 color: PINK,
             });
             if i == OUTER {
-                /* Non empty vector so first element is "privileged" */
-                lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[0]].x, ts.layers[INNER].nodes[node.acrossness[0]].y), color: PURPLE });
-                for acr_id in 1..node.acrossness.len() - 1 {
-                    lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[acr_id]].x, ts.layers[INNER].nodes[node.acrossness[acr_id]].y), color: GREEN })
-                }
+                /* TODO: get lines based on acrossness map/matrix */
             }
         }
     }
@@ -103,10 +99,8 @@ pub fn lines_playground(ts: &ThickSurface, last_changes: &Vec<NodeChangeMap>) ->
                     color: PINK,
                 });
                 if i == OUTER {
-                    /* Non empty vector so first element is "privileged" */
-                    lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[0]].x, ts.layers[INNER].nodes[node.acrossness[0]].y), color: PURPLE });
-                    for acr_id in 1..node.acrossness.len() - 1 {
-                        lines.push(Line { points: (node.x, node.y, ts.layers[INNER].nodes[node.acrossness[acr_id]].x, ts.layers[INNER].nodes[node.acrossness[acr_id]].y), color: GREEN })
+                    if i == OUTER {
+                        /* TODO: get lines based on acrossness map/matrix */
                     }
                 }
             }

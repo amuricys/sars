@@ -93,9 +93,9 @@ fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, layer_acr
     let graph_across = &ts.layers[layer_across];
 
     for n in &graph_to_which_add.nodes {
-        match graph::node_to_add(graph_to_which_add, graph_across, n, n.next(&graph_to_which_add), addition_threshold) {
+        match graph::node_to_add(graph_to_which_add, n, n.next(&graph_to_which_add), addition_threshold) {
             Some(addition) => {
-                add_node_(ts, layer_to_add, layer_across, addition);
+                add_node_(ts, layer_to_add,  addition);
                 break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
             }
             None => {}

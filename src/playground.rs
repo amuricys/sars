@@ -1,5 +1,5 @@
 use types::ThickSurface;
-use graph::{cyclic_graph_from_coords, establish_correspondences};
+use graph::{cyclic_graph_from_coords};
 use vec1::Vec1;
 
 pub fn diagonal_ts() -> ThickSurface {
@@ -20,6 +20,5 @@ pub fn diagonal_ts() -> ThickSurface {
     let mut outer_graph = cyclic_graph_from_coords(&coords_outer);
     let mut inner_graph = cyclic_graph_from_coords(&coords_inner);
 
-    establish_correspondences(&mut outer_graph, &mut inner_graph);
     ThickSurface {layers: vec![outer_graph, inner_graph]}
 }

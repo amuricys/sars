@@ -143,40 +143,7 @@ fn assert_cyclicness(ts: &ThickSurface) {
     println!("ts: {:?}", ts);
 }
 
-fn assert_acrossness_for_node(g_across: &Graph, n: &Node) -> bool {
-    for acr in &n.acrossness {
-        match g_across.nodes[*acr].acrossness.iter().position(|&r| r == n.id) {
-            Some(_) => continue,
-            None => return false
-        }
-    }
-    true
-}
-
-fn assert_acrossness(ts: &ThickSurface) -> bool {
-    for n in &ts.layers[OUTER].nodes {
-        if !assert_acrossness_for_node(&ts.layers[INNER], n) {
-            println!("node {:?} is not in one of its correspondents' acrossness. graph across: {:?}", n, &ts.layers[INNER]);
-            panic!("");
-            return false;
-        }
-    }
-    for n in &ts.layers[INNER].nodes {
-        if !assert_acrossness_for_node(&ts.layers[OUTER], n) {
-            println!("node {:?} is not in one of its correspondents' acrossness. graph across: {:?}", n, &ts.layers[INNER]);
-            panic!("");
-            return false;
-        }
-    }
-    true
-}
-
-pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across: usize, node_addition: NodeAddition) {
-    for across in &node_addition.n.acrossness {
-        let node_in_layer_across = &mut ts.layers[layer_across].nodes[*across];
-        node_in_layer_across.acrossness.push(node_addition.n.id);
-    }
-
+pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition: NodeAddition) {
     ts.layers[layer_to_which_add].nodes[node_addition.n.next_id].prev_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes[node_addition.n.prev_id].next_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes.insert(node_addition.n.id, Node { id: node_addition.n.id, ..node_addition.n });
@@ -188,7 +155,6 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, layer_across:
              ts.layers[layer_to_which_add].nodes[node_addition.n.next_id].x, ts.layers[layer_to_which_add].nodes[node_addition.n.next_id].y,
              distance_between_nodes(&ts.layers[layer_to_which_add].nodes[node_addition.n.prev_id], &ts.layers[layer_to_which_add].nodes[node_addition.n.next_id]));
 
-    assert_acrossness(ts);
     assert_cyclicness(ts);
 }
 
@@ -199,7 +165,6 @@ fn swap_nodes(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_acros
         /* The if branches below are for: prev ---> del ---> last ---> last.next */
         next_id: if deleted_id != last.next_id {last.next_id} else {ts.layers[layer_from_which_delete].nodes[deleted_id].next_id},
         prev_id: if deleted_id != last.prev_id  {last.prev_id} else {ts.layers[layer_from_which_delete].nodes[deleted_id].prev_id},
-        acrossness: last.acrossness.clone(),
         x: last.x,
         y: last.y
     };
@@ -208,20 +173,6 @@ fn swap_nodes(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_acros
     ts.layers[layer_from_which_delete].nodes[new_mix.next_id].prev_id = if deleted_id == last.id {new_mix.prev_id} else {deleted_id};
     ts.layers[layer_from_which_delete].nodes[new_mix.prev_id].next_id = if deleted_id == last.id {new_mix.next_id} else {deleted_id};
     ts.layers[layer_from_which_delete].nodes[deleted_id] = new_mix;
-
-    /* Clone for simplicity */
-    let deleted_acrossness = ts.layers[layer_from_which_delete].nodes[deleted_id].acrossness.clone();
-    let last_acrossness = last.acrossness.clone();
-    /* Make last's across nodes point to new id (the deleted node's id) */
-    for acr in last_acrossness {
-        let deleteds_index = ts.layers[layer_across].nodes[acr].acrossness.iter().position(|x| *x == last.id).unwrap();
-        ts.layers[layer_across].nodes[acr].acrossness[deleteds_index] = deleted_id;
-    }
-    /* Make the deleted node's acrossnesses "forget" about it by removing its index from their acrossness list. */
-    for acr in deleted_acrossness {
-        let deleteds_index = ts.layers[layer_across].nodes[acr].acrossness.iter().position(|x| *x == deleted_id).unwrap();
-        ts.layers[layer_across].nodes[acr].acrossness.try_remove(deleteds_index);
-    }
 }
 
 fn simple_delete(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize) {
@@ -232,22 +183,12 @@ fn simple_delete(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_ac
 
     ts.layers[layer_from_which_delete].nodes.remove(last.id);
 
-    assert_acrossness(ts);
     assert_cyclicness(ts);
 }
 
 pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, (prev_id, next_id): (usize, usize)) {
-    fn not_the_only_across(j: &Node, g_across: &Graph) -> bool {
-        j.acrossness.iter().all(|x| { g_across.nodes[*x].acrossness.len() > 1 })
-    }
-
-    /* TODO: We're only doing simple delete for now, as in deleting nodes that aren't the only ones across their correspondents */
-    let (prev, next) = (&ts.layers[layer_from_which_delete].nodes[prev_id], &ts.layers[layer_from_which_delete].nodes[next_id]);
-    if not_the_only_across(prev, &ts.layers[layer_across]) {
-        simple_delete(ts, layer_from_which_delete, layer_across, prev_id)
-    } else if not_the_only_across(next, &ts.layers[layer_across]) {
-        simple_delete(ts, layer_from_which_delete, layer_across, next_id)
-    }
+    /* TODO: We're only doing simple delete for now */
+    simple_delete(ts, layer_from_which_delete, layer_across, prev_id)
 }
 
 
@@ -273,42 +214,27 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
 }
 
 fn direction_vector2(graph_across: &Graph, other_graph: &Graph, change: &NodeChange, other_graph_changes: &NodeChangeMap, compression_factor: f64) -> (f64, f64) {
-    let changed_nodes_prev = other_graph.nodes[change.id].prev(other_graph);
-    let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
-        //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
-        _ => (changed_nodes_prev.x, changed_nodes_prev.y)
-    };
-    let changed_nodes_next = other_graph.nodes[change.id].next(other_graph);
-    let (next_ref_x, next_ref_y) = match other_graph_changes.get(&changed_nodes_next.id) {
-        //Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
-        _ => (changed_nodes_next.x, changed_nodes_next.y)
-    };
-    /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
-    let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, next_ref_x, next_ref_y, prev_ref_x, prev_ref_y);
-
-    let node_across = &graph_across.nodes[other_graph.nodes[change.id].acrossness[0]];
-    let dist = distance_between_nodes(&node_across, &other_graph.nodes[change.id]);
-
-    let (desired_pos_x, desired_pos_y) = ((change.cur_x + change.delta_x) + dir_x * dist * compression_factor, (change.cur_y + change.delta_y) + dir_y * dist * compression_factor);
-
-    (-node_across.x + desired_pos_x, -node_across.y + desired_pos_y)
+    /*TODO: Needs to push each node in the average direction of its correspondent */
+    (0.0, 0.0)
 }
 
-/* TODO: other_graph_changes should become a NodeChangeMap. This allows it to find the soon-to-be changed
-    versions of the outer changed nodes, calculate what the delta of the nodes across is in relation to _that_ position,
-    and then push it in that direction with weight (1 / acrossness_len) */
+/* TODO: Should take in map/matrix of correspondences */
+fn node_across() -> Node {
+    Node {
+        id: 0,
+        x: 0.0,
+        y: 0.0,
+        next_id: 0,
+        prev_id: 0
+    }
+}
+
 pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_graph_changes: &NodeChangeMap, compression_factor: f64) -> NodeChangeMap {
     let mut ret = HashMap::new();
     for (_, c) in other_graph_changes {
         let (delta_x, delta_y) = direction_vector2(this_graph, other_graph, c, other_graph_changes, compression_factor);
-
-        /* This should be done for each node across the changed one */
-        for acr_id in &other_graph.nodes[c.id].acrossness {
-            let node_across = &this_graph.nodes[*acr_id];
-            /*The line below normalizes this change: if a change is made to one of 3 of an inner node's acrosses, that change should only push it by 1/3 */
-            let (delta_x, delta_y) = (delta_x / node_across.acrossness.len() as f64, delta_y / node_across.acrossness.len() as f64);
-            ret.insert(node_across.id, NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, delta_x, delta_y });
-        }
+        let node_across = node_across();
+        ret.insert(node_across.id, NodeChange { id: node_across.id, cur_x: node_across.x, cur_y: node_across.y, delta_x, delta_y });
     }
     ret
 }
@@ -316,7 +242,7 @@ pub fn changes_from_other_graph(this_graph: &Graph, other_graph: &Graph, other_g
 #[cfg(test)]
 mod tests {
     use super::*;
-    use graph::{cyclic_graph_from_coords, circular_graph, area, circular_thick_surface, node_to_add, establish_correspondences};
+    use graph::{cyclic_graph_from_coords, circular_graph, area, circular_thick_surface, node_to_add};
     use vec1::Vec1;
 
     #[test]
@@ -378,40 +304,17 @@ mod tests {
         let mut circular = circular_thick_surface(1.0, 0.3, size_of_graph);
 
         // Low addition threshold ensures this adds a node
-        let to_add = node_to_add(&circular.layers[OUTER], &circular.layers[INNER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
-        add_node_(&mut circular, OUTER, INNER, to_add.unwrap());
-        let to_add = node_to_add(&circular.layers[OUTER], &circular.layers[INNER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
-        add_node_(&mut circular, OUTER, INNER, to_add.unwrap());
-        let to_add = node_to_add(&circular.layers[OUTER], &circular.layers[INNER], &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
-        add_node_(&mut circular, OUTER, INNER, to_add.unwrap());
+        let to_add = node_to_add(&circular.layers[OUTER],  &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
+        add_node_(&mut circular, OUTER,  to_add.unwrap());
+        let to_add = node_to_add(&circular.layers[OUTER],  &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
+        add_node_(&mut circular, OUTER,  to_add.unwrap());
+        let to_add = node_to_add(&circular.layers[OUTER],  &circular.layers[OUTER].nodes[10], &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]), 0.000001);
+        add_node_(&mut circular, OUTER,  to_add.unwrap());
 
-        let to_add = node_to_add(&circular.layers[INNER], &circular.layers[OUTER], &circular.layers[INNER].nodes[10], &circular.layers[INNER].nodes[10].next(&circular.layers[INNER]), 0.000001);
-        add_node_(&mut circular, INNER, OUTER, to_add.unwrap());
+        let to_add = node_to_add( &circular.layers[INNER], &circular.layers[INNER].nodes[10], &circular.layers[INNER].nodes[10].next(&circular.layers[INNER]), 0.000001);
+        add_node_(&mut circular, INNER,  to_add.unwrap());
 
-        for n in &circular.layers[OUTER].nodes {
-            for acr in &n.acrossness {
-                let mut found = false;
-                for acr_acr in &circular.layers[INNER].nodes[*acr].acrossness {
-                    if *acr_acr == n.id {
-                        found = true;
-                        break; }
-                }
-                if !found { panic!("wtf!") }
-            }
-        }
-
-        for n in &circular.layers[INNER].nodes {
-            for acr in &n.acrossness {
-                let mut found = false;
-                for acr_acr in &circular.layers[OUTER].nodes[*acr].acrossness {
-                    if *acr_acr == n.id {
-                        found = true;
-                        break; }
-                }
-                if !found { panic!("wtf!") }
-            }
-        }
-        assert_eq!(1.0, 1.0)
+        /*TODO: FUCK, gotta fix these tests bad. */
     }
 }
 
