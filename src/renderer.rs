@@ -11,7 +11,9 @@ use graph;
 use piston::{PressEvent, Button};
 use simulated_annealing::step_with_manual_change;
 use recorders;
+use stitcher;
 use std::collections::HashMap;
+use stitcher::Stitching;
 
 type Color = [f32; 4];
 
@@ -68,7 +70,7 @@ impl Renderer {
     }
 }
 
-pub fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
+pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<Line> {
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
@@ -78,9 +80,18 @@ pub fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<Line> {
                          node.next(g).x, node.next(g).y),
                 color: PINK,
             });
-            if i == OUTER {
-                /* TODO: get lines based on acrossness map/matrix */
-            }
+        }
+    }
+    for (k, v) in &v[OUTER] {
+        let outer_x = ts.layers[OUTER].nodes[*k].x;
+        let outer_y = ts.layers[OUTER].nodes[*k].y;
+        for val in v {
+            let inner_x = ts.layers[INNER].nodes[*val].x;
+            let inner_y = ts.layers[INNER].nodes[*val].y;
+            lines.push(Line {
+                points: (outer_x, outer_y, inner_x, inner_y),
+                color: PURPLE,
+            });
         }
     }
     lines
@@ -111,7 +122,7 @@ pub fn lines_playground(ts: &ThickSurface, last_changes: &Vec<NodeChangeMap>) ->
             lines.push(Line {
                 points: (change.cur_x, change.cur_y,
                          change.cur_x + change.delta_x, change.cur_y + change.delta_y),
-                color: BLUE
+                color: BLUE,
             })
         }
     }
@@ -133,6 +144,7 @@ struct State {
     pub one_at_a_time: bool,
     pub step_type: StepType,
     pub temperature: f64,
+    pub should_stich: bool,
 }
 
 fn next_state(event: Option<Button>, s: State) -> State {
@@ -158,12 +170,23 @@ fn next_state(event: Option<Button>, s: State) -> State {
             should_step: false,
             one_at_a_time: true,
             step_type: StepType::Reset,
-            temperature: 0.0
+            temperature: 0.0,
+            ..s
         },
         _ => State {
             step_type: if !s.should_step { StepType::NoStep } else { s.step_type },
             ..s
         }
+    }
+}
+
+fn initial_state(initial_temperature: f64) -> State {
+    State {
+        should_step: false,
+        one_at_a_time: true,
+        step_type: StepType::NoStep,
+        temperature: initial_temperature,
+        should_stich: true,
     }
 }
 
@@ -173,8 +196,9 @@ pub fn setup_optimization_and_loop<F>(ts: &mut ThickSurface,
                                       renderer: &mut Renderer,
                                       how_to_make_lines: F,
                                       params: &Params)
-  where F: Fn(&ThickSurface, &Vec<NodeChangeMap>) -> Vec<Line> {
-    let mut state = State { should_step: false, one_at_a_time: true, step_type: StepType::NoStep, temperature: params.initial_temperature };
+    where F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &Stitching) -> Vec<Line> {
+    let mut state = initial_state(params.initial_temperature);
+    let mut stitching = stitcher::stitch(ts);
     let mut events = Events::new(EventSettings::new());
     let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
     let mut changeset = vec![];
@@ -183,7 +207,7 @@ pub fn setup_optimization_and_loop<F>(ts: &mut ThickSurface,
     while let Some(e) = events.next(window) {
         let proto_change = NodeChange { id: 0, cur_x: ts.layers[OUTER].nodes[0].x, cur_y: ts.layers[OUTER].nodes[0].y, delta_x: -0.2, delta_y: 0.0 };
 
-        let lines = how_to_make_lines(ts, &changeset);
+        let lines = how_to_make_lines(ts, &changeset, &stitching);
 
         if let Some(args) = e.render_args() {
             renderer.render(&args, &lines);
@@ -195,11 +219,17 @@ pub fn setup_optimization_and_loop<F>(ts: &mut ThickSurface,
 
         state = next_state(e.press_args(), state);
         match state.step_type {
-            StepType::ManualChange => changeset = simulated_annealing::step_with_manual_change(ts, proto_change, params.initial_gray_matter_area, state.temperature, params,  rng),
-            StepType::OneAtATime => changeset = simulated_annealing::step(ts,  params.initial_gray_matter_area, state.temperature, params, rng),
+            StepType::ManualChange => changeset = simulated_annealing::step_with_manual_change(ts, proto_change, params.initial_gray_matter_area, state.temperature, params, rng),
+            StepType::OneAtATime => changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, params, rng),
             StepType::Automatic => changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, params, rng),
-            StepType::Reset => *ts = {changeset = vec![]; graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points)},
+            StepType::Reset => *ts = {
+                changeset = vec![];
+                graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points)
+            },
             StepType::NoStep => {}
+        }
+        if state.should_stich {
+            stitching = stitcher::stitch(ts);
         }
         match &mut output_file {
             Some(f) => recorders::record(ts, params, f),

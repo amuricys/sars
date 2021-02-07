@@ -158,37 +158,26 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition
     assert_cyclicness(ts);
 }
 
-fn swap_nodes(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize, last: &Node) {
-    /* Deleted node's position will now contain the last node */
-    let new_mix = Node {
-        id: deleted_id,
-        /* The if branches below are for: prev ---> del ---> last ---> last.next */
-        next_id: if deleted_id != last.next_id {last.next_id} else {ts.layers[layer_from_which_delete].nodes[deleted_id].next_id},
-        prev_id: if deleted_id != last.prev_id  {last.prev_id} else {ts.layers[layer_from_which_delete].nodes[deleted_id].prev_id},
-        x: last.x,
-        y: last.y
-    };
-    /* The if branches below are for: prev ----> del/last ----> next. In this case the deleted node's prev, an undeleted one,
-       should "skip" the deleted one with the next_id. */
-    ts.layers[layer_from_which_delete].nodes[new_mix.next_id].prev_id = if deleted_id == last.id {new_mix.prev_id} else {deleted_id};
-    ts.layers[layer_from_which_delete].nodes[new_mix.prev_id].next_id = if deleted_id == last.id {new_mix.next_id} else {deleted_id};
-    ts.layers[layer_from_which_delete].nodes[deleted_id] = new_mix;
-}
+pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node: Node) {
+    /* 1. Remove node from the graph's circular path */
+    let next_id = node.next_id;
+    let prev_id = node.prev_id;
+    ts.layers[layer_from_which_delete].nodes[prev_id].next_id = next_id;
+    ts.layers[layer_from_which_delete].nodes[next_id].prev_id = prev_id;
 
-fn simple_delete(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deleted_id: usize) {
+    /* 2. Swap last node and deleted node's position */
     let last = ts.layers[layer_from_which_delete].nodes.last().unwrap().clone();
+    let deleted_id = node.id;
+    ts.layers[layer_from_which_delete].nodes[last.prev_id].next_id = deleted_id;
+    ts.layers[layer_from_which_delete].nodes[last.next_id].prev_id = deleted_id;
+    ts.layers[layer_from_which_delete].nodes[deleted_id] = last;
+    ts.layers[layer_from_which_delete].nodes[deleted_id].id = deleted_id;
 
-    /* This fn does mutable magic on the last node, the deleted node, and all involved acrossnesses, and isolates the last node for deletion */
-    swap_nodes(ts, layer_from_which_delete, layer_across, deleted_id, &last);
-
-    ts.layers[layer_from_which_delete].nodes.remove(last.id);
+    /* 3. Shrink vector by 1 */
+    let s = ts.layers[layer_from_which_delete].nodes.len();
+    ts.layers[layer_from_which_delete].nodes.truncate(s - 1);
 
     assert_cyclicness(ts);
-}
-
-pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, (prev_id, next_id): (usize, usize)) {
-    /* TODO: We're only doing simple delete for now */
-    simple_delete(ts, layer_from_which_delete, layer_across, prev_id)
 }
 
 

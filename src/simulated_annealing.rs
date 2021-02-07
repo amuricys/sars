@@ -42,7 +42,7 @@ fn neighbor_changes(ts: &ThickSurface,
                     rng: &mut rand::rngs::ThreadRng) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = random_change(&ts.layers[layer_to_push], low_high, rng);
     let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], outer_change.clone(), how_smooth);
-    let smoothed_inner_changes = changes_from_other_graph(&ts.layers[layer_across], &ts.layers[layer_to_push], &smoothed_changes, compression_factor);
+    let smoothed_inner_changes = HashMap::new(); //changes_from_other_graph(&ts.layers[layer_across], &ts.layers[layer_to_push], &smoothed_changes, compression_factor);
     (smoothed_changes, smoothed_inner_changes)
 }
 
@@ -88,9 +88,8 @@ fn intersection_effects(ts: &mut ThickSurface,
     }
 }
 
-fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, layer_across: usize, addition_threshold: f64) {
+fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, addition_threshold: f64) {
     let graph_to_which_add = &ts.layers[layer_to_add];
-    let graph_across = &ts.layers[layer_across];
 
     for n in &graph_to_which_add.nodes {
         match graph::node_to_add(graph_to_which_add, n, n.next(&graph_to_which_add), addition_threshold) {
@@ -103,13 +102,13 @@ fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, layer_acr
     }
 }
 
-fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: usize, layer_across: usize, deletion_threshold: f64) {
+fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: usize, deletion_threshold: f64) {
     let graph_from_which_delete = &ts.layers[layer_from_which_delete];
 
     for n in &graph_from_which_delete.nodes {
         match graph::node_to_delete(graph_from_which_delete, n, n.next(&graph_from_which_delete), deletion_threshold) {
             Some(deletion) => {
-                delete_node_(ts, layer_from_which_delete, layer_across, deletion);
+                delete_node_(ts, layer_from_which_delete, deletion);
                 break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
             }
             None => {}
@@ -142,12 +141,12 @@ pub fn step(ts: &mut ThickSurface,
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
     unsafe {
         if !THING {
-            add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
-            add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
+            add_single_node_effects(ts, OUTER, node_addition_threshold);
+            add_single_node_effects(ts, INNER, node_addition_threshold);
             THING = !THING;
         } else {
-            delete_single_node_effects(ts, OUTER, INNER, node_deletion_threshold);
-            delete_single_node_effects(ts, INNER, OUTER, node_deletion_threshold);
+            delete_single_node_effects(ts, OUTER, node_deletion_threshold);
+            delete_single_node_effects(ts, INNER, node_deletion_threshold);
             THING = !THING;
         }
     }
@@ -172,8 +171,8 @@ pub fn step_with_manual_change(ts: &mut ThickSurface,
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
     intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    add_single_node_effects(ts, OUTER, INNER, node_addition_threshold);
-    add_single_node_effects(ts, INNER, OUTER, node_addition_threshold);
+    add_single_node_effects(ts, OUTER,  node_addition_threshold);
+    add_single_node_effects(ts, INNER,  node_addition_threshold);
 
     vec![outer_changes, inner_changes]
 }

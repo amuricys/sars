@@ -6,6 +6,7 @@ mod types;
 mod graph;
 mod playground;
 mod recorders;
+mod stitcher;
 
 extern crate glutin_window;
 extern crate graphics;
@@ -57,7 +58,7 @@ fn real_main() {
                                           &mut rng,
                                           &mut window,
                                           &mut renderer,
-                                          | ts,_ | { renderer::lines_from_thick_surface(ts) },
+                                          | ts,_, s | { renderer::lines_from_thick_surface(ts, s) },
                                           &params)
 }
 
@@ -75,7 +76,7 @@ fn playground_main() {
                                           &mut rng,
                                           &mut window,
                                           &mut renderer,
-                                          renderer::lines_playground,
+                                          |x, y, _| renderer::lines_playground(x, y),
                                           &params)}
 
 fn main() {

@@ -117,10 +117,10 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
     } else { None }
 }
 
-pub fn node_to_delete(g: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<(NodeIndex, NodeIndex)> {
+pub fn node_to_delete(g: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<Node> {
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
         distance_between_nodes(prev, next) < deletion_threshold {
-        Some((prev.id, next.id))
+        Some(prev.clone())
     } else { None }
 }
 
