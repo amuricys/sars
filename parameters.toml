@@ -1,11 +1,11 @@
-"initial_thickness" = 0.15
+"initial_thickness" = 0.025
 "initial_radius" = 1.0
-"initial_num_points" = 40
+"initial_num_points" = 150
 "initial_temperature" = 0.0
 "compression_factor" = 1.1
 "softness_factor" = 1.0
-"how_smooth" = 10
-"node_addition_threshold" = 0.0
-"node_deletion_threshold" = 2.0
+"how_smooth" = 8
+"node_addition_threshold" = 120.0
+"node_deletion_threshold" = 0.0
 "low_high" = [-0.2, 0.2]
 "recorders" = []
