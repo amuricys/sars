@@ -15,9 +15,9 @@ extern crate piston;
 extern crate rand;
 extern crate toml;
 extern crate vec1;
-extern crate core;
 
 use std::f64::consts::PI;
+use renderer::draw_mode_rendering;
 
 fn toml_table_to_params(table: toml::Value) -> types::Params {
     match table {
@@ -74,6 +74,12 @@ fn real_main() {
     )
 }
 
+fn playin_main() {
+    let (mut renderer, mut window) = renderer::setup_renderer();
+    draw_mode_rendering(&mut window, &mut renderer)
+}
+
 fn main() {
-    real_main()
+    playin_main()
+    // real_main()
 }

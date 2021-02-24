@@ -6,7 +6,6 @@ use stitcher::Stitching;
 use types::*;
 use vector_2d_helpers::{bisecting_vector, lines_intersection, norm};
 use vec1::Vec1;
-use core::panicking::panic_fmt;
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {
     /* TODO: Not thread safe */

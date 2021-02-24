@@ -63,7 +63,7 @@ pub enum Stitching {
 }
 
 impl Stitching {
-    fn new() -> Stitching {
+    pub fn new() -> Stitching {
         Stitching::Stitch(Vec::from([ListMap::new(), ListMap::new()]))
     }
     fn put(&mut self, inn: (usize, f64, f64), out: (usize, f64, f64)) {

@@ -4,9 +4,9 @@ use types::*;
 use vec1::Vec1;
 use vector_2d_helpers::{dist, norm};
 
-pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
+// TODO: MAKE IT NT CYCLICAL
+pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
     let mut to_return: Graph = Graph { nodes: Vec::new() };
-    let _will_get_overridden_by_establish_corrs = 300;
     let num_points = node_coordinates.len();
     to_return.nodes.push(Node {
         id: 0,
@@ -37,7 +37,7 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
             center_y + (i as f64 * (2.0 * PI) / num_points as f64).sin() * radius,
         ))
     }
-    cyclic_graph_from_coords(&circular_coords)
+    cyclic_graph_from_coords(circular_coords.as_vec())
 }
 
 pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
