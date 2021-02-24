@@ -1,11 +1,8 @@
 use graph;
-use graph_change::{
-    add_node_, apply_changes, changes_from_other_graph, changes_from_other_graph3, delete_node_, random_change,
-    revert_changes, smooth_change_out2,
-};
+use graph_change::{add_node_, apply_changes, changes_from_other_graph, changes_from_other_graph3, delete_node_, random_change, revert_changes, smooth_change_out};
 use rand::Rng;
 use stitcher::Stitching;
-use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER};
+use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER, Smooth};
 use vector_2d_helpers::lines_intersection;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
@@ -18,10 +15,8 @@ fn manual_neighbor_changes(
     how_smooth: usize,
     compression_factor: f64,
     stitch: Stitching,
-    _low_high: (f64, f64),
-    _rng: &mut rand::rngs::ThreadRng,
 ) -> (NodeChangeMap, NodeChangeMap) {
-    let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], node_change.clone(), how_smooth);
+    let smoothed_changes = smooth_change_out(&ts.layers[layer_to_push], node_change.clone(), Smooth::Count(how_smooth));
     let smoothed_inner_changes =
         changes_from_other_graph(&ts.layers[layer_across], &smoothed_changes, compression_factor, stitch);
     (smoothed_changes, smoothed_inner_changes)
@@ -38,7 +33,7 @@ fn neighbor_changes(
     rng: &mut rand::rngs::ThreadRng,
 ) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = random_change(&ts.layers[layer_to_push], low_high, rng);
-    let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], outer_change.clone(), how_smooth);
+    let smoothed_changes = smooth_change_out(&ts.layers[layer_to_push], outer_change.clone(), Smooth::Count(how_smooth));
     let smoothed_inner_changes = changes_from_other_graph3(
         &ts.layers[layer_across],
         &ts.layers[layer_to_push],
@@ -190,7 +185,6 @@ pub fn step_with_manual_change(
 ) -> Vec<NodeChangeMap> {
     let how_smooth = params.how_smooth;
     let compression_factor = params.compression_factor;
-    let low_high = params.low_high;
     let node_addition_threshold = params.node_addition_threshold;
 
     let (outer_changes, inner_changes) = manual_neighbor_changes(
@@ -200,9 +194,7 @@ pub fn step_with_manual_change(
         INNER,
         how_smooth,
         compression_factor,
-        stitch,
-        low_high,
-        rng,
+        stitch
     );
     let energy_state = energy(ts, initial_gray_matter_area);
     apply_changes(&mut ts.layers[OUTER], &outer_changes);

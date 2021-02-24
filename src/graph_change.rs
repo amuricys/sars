@@ -58,105 +58,46 @@ pub fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::T
     }
 }
 
-/* TODO: Should use Either here. Implement Num trait for it. Should be interesting */
-pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    ret.insert(change.id, change);
-    let mut dist_traveled_prev = 0.0;
-    let mut dist_traveled_next = 0.0;
-    let mut cur_next = &g.nodes[change.id];
-    let mut cur_prev = &g.nodes[change.id];
-
-    loop {
-        cur_next = cur_next.next(g);
-        cur_prev = cur_prev.prev(g);
-
-        dist_traveled_next = dist_traveled_next + distance_between_nodes(&g.nodes[change.id], cur_next);
-        dist_traveled_prev = dist_traveled_prev + distance_between_nodes(&g.nodes[change.id], cur_prev);
-
-        let enough_next = dist_traveled_next > how_smooth;
-        let enough_prev = dist_traveled_prev > how_smooth;
-
-        if !enough_next {
-            let diff_x = change.delta_x * (how_smooth - dist_traveled_next) / how_smooth;
-            let diff_y = change.delta_y * (how_smooth - dist_traveled_next) / how_smooth;
-            ret.insert(
-                cur_next.id,
-                NodeChange {
-                    id: cur_next.id,
-                    cur_x: cur_next.x,
-                    cur_y: cur_next.y,
-                    delta_x: diff_x,
-                    delta_y: diff_y,
-                },
-            );
-        }
-        if !enough_prev {
-            let diff_x = change.delta_x * (how_smooth - dist_traveled_prev) / how_smooth;
-            let diff_y = change.delta_y * (how_smooth - dist_traveled_prev) / how_smooth;
-            ret.insert(
-                cur_prev.id,
-                NodeChange {
-                    id: cur_prev.id,
-                    cur_x: cur_prev.x,
-                    cur_y: cur_prev.y,
-                    delta_x: diff_x,
-                    delta_y: diff_y,
-                },
-            );
-        }
-        if enough_next && enough_prev {
-            break;
-        }
+fn mk_change(node: &Node, other_change: NodeChange, how_smooth_f64: f64, dist_traveled: f64) -> NodeChange {
+    let diff_x = other_change.delta_x * (how_smooth_f64 - dist_traveled) / how_smooth_f64;
+    let diff_y = other_change.delta_y * (how_smooth_f64 - dist_traveled) / how_smooth_f64;
+    NodeChange {
+        id: node.id,
+        cur_x: node.x,
+        cur_y: node.y,
+        delta_x: diff_x,
+        delta_y: diff_y,
     }
-    ret
 }
 
-pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> NodeChangeMap {
+pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: Smooth<usize, f64>) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
     ret.insert(change.id, change);
-    let mut dist_traveled_prev = 0;
-    let mut dist_traveled_next = 0;
+
+    let mut dist_traveled_prev = match how_smooth {
+        Smooth::Count(_) => Smooth::Count(0),
+        Smooth::Continuous(_) => Smooth::Continuous(0.0)
+    };
+    let mut dist_traveled_next = dist_traveled_prev;
     let mut cur_next = &g.nodes[change.id];
     let mut cur_prev = &g.nodes[change.id];
 
+    let how_smooth_f64 = how_smooth.as_f64();
     loop {
         cur_next = cur_next.next(g);
         cur_prev = cur_prev.prev(g);
 
-        dist_traveled_next = dist_traveled_next + 1;
-        dist_traveled_prev = dist_traveled_prev + 1;
+        dist_traveled_next = dist_traveled_next.add( distance_between_nodes(&g.nodes[change.id], cur_next));
+        dist_traveled_prev = dist_traveled_prev.add(distance_between_nodes(&g.nodes[change.id], cur_prev));
 
-        let enough_next = dist_traveled_next > how_smooth;
-        let enough_prev = dist_traveled_prev > how_smooth;
+        let enough_next = dist_traveled_next.as_f64() > how_smooth_f64;
+        let enough_prev = dist_traveled_prev.as_f64() > how_smooth_f64;
 
         if !enough_next {
-            let diff_x = change.delta_x * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
-            let diff_y = change.delta_y * (how_smooth as f64 - dist_traveled_next as f64) / how_smooth as f64;
-            ret.insert(
-                cur_next.id,
-                NodeChange {
-                    id: cur_next.id,
-                    cur_x: cur_next.x,
-                    cur_y: cur_next.y,
-                    delta_x: diff_x,
-                    delta_y: diff_y,
-                },
-            );
+            ret.insert(cur_next.id, mk_change(&cur_next, change, how_smooth_f64, dist_traveled_next.as_f64()));
         }
         if !enough_prev {
-            let diff_x = change.delta_x * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
-            let diff_y = change.delta_y * (how_smooth as f64 - dist_traveled_prev as f64) / how_smooth as f64;
-            ret.insert(
-                cur_prev.id,
-                NodeChange {
-                    id: cur_prev.id,
-                    cur_x: cur_prev.x,
-                    cur_y: cur_prev.y,
-                    delta_x: diff_x,
-                    delta_y: diff_y,
-                },
-            );
+            ret.insert(cur_prev.id, mk_change(&cur_prev, change, how_smooth_f64, dist_traveled_prev.as_f64()));
         }
         if enough_next && enough_prev {
             break;

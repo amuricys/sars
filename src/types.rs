@@ -1,5 +1,27 @@
 use std::collections::HashMap;
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Smooth<L, R> {
+    Count(L),
+    Continuous(R)
+}
+
+impl Smooth<usize, f64> {
+    pub fn as_f64 (&self) -> f64 {
+        match self {
+            Smooth::Count(int) => *int as f64,
+            Smooth::Continuous(flo) => *flo,
+        }
+    }
+
+    pub fn add(self, rhs: f64) -> Smooth<usize, f64> {
+        match self {
+            Smooth::Count(int) => Smooth::Count(int + 1),
+            Smooth::Continuous(flo) => Smooth::Continuous(flo + rhs),
+        }
+    }
+}
+
 pub type NodeIndex = usize;
 pub enum NodeChangeMap {
     NCM(HashMap<usize, NodeChange>),

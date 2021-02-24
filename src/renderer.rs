@@ -11,7 +11,7 @@ use recorders;
 use simulated_annealing;
 
 use stitcher;
-use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER};
+use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER, Smooth};
 
 type Color = [f32; 4];
 
@@ -287,7 +287,7 @@ pub fn setup_optimization_and_loop<F>(
                         delta_y: cursor_pos_y - closest_node.y,
                     };
                     let surrounding_imaginary_changes =
-                        graph_change::smooth_change_out2(&ts.layers[OUTER], imaginary_change, params.how_smooth);
+                        graph_change::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Continuous(params.how_smooth as f64));
                     let inner_imaginary_changes = graph_change::changes_from_other_graph3(
                         &ts.layers[INNER],
                         &ts.layers[OUTER],
