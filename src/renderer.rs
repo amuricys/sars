@@ -10,11 +10,8 @@ use piston::{Button, PressEvent};
 use recorders;
 use simulated_annealing;
 
-
 use stitcher;
-use stitcher::Stitching;
 use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER};
-
 
 type Color = [f32; 4];
 
@@ -24,6 +21,7 @@ const PURPLE: Color = [0.8, 0.0, 0.8, 1.0];
 const PINK: Color = [1.0, 0.4, 1.0, 1.0];
 const BLUE: Color = [0.2, 0.2, 1.0, 1.0];
 const GREEN: Color = [0.2, 1.0, 0.2, 1.0];
+const _COLORS: [Color; 6] = [BLACK, WHITE, PURPLE, PINK, BLUE, GREEN];
 
 pub struct Renderer {
     gl: GlGraphics,
@@ -69,13 +67,13 @@ impl Renderer {
         });
     }
 
-    fn update(&mut self, _args: &UpdateArgs) {
-        // Rotate 2 radians per second.
-        // self.rotation += 2.0 * args.dt;
+    fn update(&mut self, args: &UpdateArgs) {
+        // Rotate very slightly each second (0.02 radians).
+        self.rotation += 0.02 * args.dt;
     }
 }
 
-pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<Line> {
+pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v): &stitcher::Stitching) -> Vec<Line> {
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
@@ -256,7 +254,7 @@ pub fn setup_optimization_and_loop<F>(
     how_to_make_lines: F,
     params: &Params,
 ) where
-    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &Stitching) -> Vec<Line>,
+    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &stitcher::Stitching) -> Vec<Line>,
 {
     let mut state = initial_state(params.initial_temperature);
     let mut stitching = stitcher::stitch(ts);

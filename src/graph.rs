@@ -40,12 +40,6 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
     cyclic_graph_from_coords(&circular_coords)
 }
 
-pub fn debug_straight_surface(_num_points: usize) -> ThickSurface {
-    panic!("Will make it soon");
-    // establish_correspondences(&mut outer, &mut inner);
-    // ThickSurface{layers: Vec::from([outer, inner]), edges: Vec::new()}
-}
-
 pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
     let outer = circular_graph(0.0, 0.0, radius, num_points);
     let inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
@@ -158,7 +152,6 @@ pub fn node_to_delete(g: &Graph, prev: &Node, next: &Node, deletion_threshold: f
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn we_go_around() {

@@ -1,21 +1,18 @@
-
 use std::collections::HashMap;
 
-
 pub type NodeIndex = usize;
-pub type EdgeIndex = usize;
 pub enum NodeChangeMap {
-    FuckYes(HashMap<usize, NodeChange>),
+    NCM(HashMap<usize, NodeChange>),
 }
 
 impl NodeChangeMap {
     pub(crate) fn new() -> NodeChangeMap {
-        NodeChangeMap::FuckYes(HashMap::new())
+        NodeChangeMap::NCM(HashMap::new())
     }
 
     pub(crate) fn get(&self, k: &usize) -> Option<&NodeChange> {
         match self {
-            NodeChangeMap::FuckYes(m) => m.get(k),
+            NodeChangeMap::NCM(m) => m.get(k),
         }
     }
     /* This insertion mechanism implements a moving average on every insertion to a map of NodeChanges, instead of overriding
@@ -26,15 +23,15 @@ impl NodeChangeMap {
     */
     pub(crate) fn insert(&mut self, k: usize, v: NodeChange) -> Option<NodeChange> {
         match self {
-            NodeChangeMap::FuckYes(m) => match m.get(&k) {
-                Some(goddamn_thing) => m.insert(
-                    k,
-                    NodeChange {
+            NodeChangeMap::NCM(m) => match m.get_mut(&k) {
+                Some(goddamn_thing) => {
+                    let to_ins = NodeChange {
                         delta_x: (goddamn_thing.delta_x + v.delta_x) / 2.0,
                         delta_y: (goddamn_thing.delta_y + v.delta_y) / 2.0,
                         ..*goddamn_thing
-                    },
-                ),
+                    };
+                    m.insert(k, to_ins)
+                }
                 None => m.insert(k, v),
             },
         }
@@ -42,7 +39,7 @@ impl NodeChangeMap {
 
     pub(crate) fn unwrap(&self) -> &HashMap<usize, NodeChange> {
         match self {
-            NodeChangeMap::FuckYes(m) => m,
+            NodeChangeMap::NCM(m) => m,
         }
     }
 }
@@ -53,7 +50,7 @@ impl IntoIterator for NodeChangeMap {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            NodeChangeMap::FuckYes(m) => m.into_iter(),
+            NodeChangeMap::NCM(m) => m.into_iter(),
         }
     }
 }
@@ -64,7 +61,7 @@ impl<'a> IntoIterator for &'a NodeChangeMap {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            NodeChangeMap::FuckYes(m) => m.iter(),
+            NodeChangeMap::NCM(m) => m.iter(),
         }
     }
 }
@@ -92,7 +89,7 @@ impl Node {
         &g.nodes[self.prev_id]
     }
 
-    pub(crate) fn pos<'a>(&self) -> (f64, f64) {
+    pub(crate) fn pos(&self) -> (f64, f64) {
         (self.x, self.y)
     }
 }
@@ -126,11 +123,6 @@ impl Graph {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct EdgeOuterToInner {
-    pub target: NodeIndex,
-    pub source: NodeIndex,
-}
 pub const OUTER: usize = 0;
 pub const INNER: usize = 1;
 #[derive(Debug, Clone)]

@@ -8,24 +8,28 @@ use types::{Params, ThickSurface, INNER, OUTER};
 
 type RecorderFn = for<'r, 's> fn(&'r ThickSurface, &'s Params) -> f64;
 
-pub fn outer_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
+fn outer_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::perimeter(&ts.layers[OUTER])
 }
 
-pub fn inner_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
+fn inner_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::perimeter(&ts.layers[INNER])
 }
 
-pub fn outer_area(ts: &ThickSurface, _p: &Params) -> f64 {
+fn outer_area(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::area(&ts.layers[OUTER])
 }
 
-pub fn inner_area(ts: &ThickSurface, _p: &Params) -> f64 {
+fn inner_area(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::area(&ts.layers[INNER])
 }
 
-pub fn energy(ts: &ThickSurface, p: &Params) -> f64 {
+fn energy(ts: &ThickSurface, p: &Params) -> f64 {
     simulated_annealing::energy(ts, p.initial_gray_matter_area)
+}
+
+fn gray_matter_area(ts: &ThickSurface, _p: &Params) -> f64 {
+    graph::gray_matter_area(ts)
 }
 
 fn name_to_fn(n: &str) -> Option<RecorderFn> {
@@ -35,6 +39,7 @@ fn name_to_fn(n: &str) -> Option<RecorderFn> {
         "inner perimeter" => Some(inner_perimeter),
         "outer area" => Some(outer_area),
         "inner area" => Some(inner_area),
+        "gray matter area" => Some(gray_matter_area),
         _ => None,
     }
 }
@@ -53,8 +58,10 @@ pub fn create_file_with_header(file_path: &str, recorders: &Vec<String>) -> Opti
 
         return match File::create(file_path) {
             Ok(mut f) => {
-                f.write_all(header.as_bytes());
-                Some(f)
+                match f.write_all(header.as_bytes()) {
+                    Ok(_) => Some(f),
+                    Err(e) => panic!("Couldn't write to file: {:?}", e)
+                }
             }
             Err(_) => None,
         };
@@ -75,5 +82,8 @@ pub fn record(ts: &ThickSurface, p: &Params, f: &mut File) {
     if line.len() > 0 {
         line.remove(0);
     }; // remove leading comma
-    f.write_all(line.as_bytes());
+    match f.write_all(line.as_bytes()) {
+        Ok(_) => { },
+        Err(e) => panic!("Couldn't write to file: {:?}", e)
+    }
 }

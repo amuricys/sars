@@ -10,27 +10,6 @@ use vector_2d_helpers::lines_intersection;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
 
-pub fn debug_changes(
-    ts: &ThickSurface,
-    how_smooth: usize,
-    compression_factor: f64,
-    which_node: usize,
-    (x_change, y_change): (f64, f64),
-    stitch: Stitching,
-) -> (NodeChangeMap, NodeChangeMap) {
-    let outer_change = NodeChange {
-        id: which_node,
-        cur_x: ts.layers[OUTER].nodes[which_node].x,
-        cur_y: ts.layers[OUTER].nodes[which_node].y,
-        delta_x: ts.layers[OUTER].nodes[which_node].x + x_change,
-        delta_y: ts.layers[OUTER].nodes[which_node].y + y_change,
-    };
-    let smoothed_changes = smooth_change_out2(&ts.layers[OUTER], outer_change.clone(), how_smooth);
-    let smoothed_inner_changes =
-        changes_from_other_graph(&ts.layers[INNER], &smoothed_changes, compression_factor, stitch);
-    (smoothed_changes, smoothed_inner_changes)
-}
-
 fn manual_neighbor_changes(
     ts: &ThickSurface,
     node_change: NodeChange,

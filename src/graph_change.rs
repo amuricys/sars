@@ -6,23 +6,21 @@ use stitcher::Stitching;
 use types::*;
 use vector_2d_helpers::{bisecting_vector, lines_intersection, norm};
 
-fn apply_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph, NodeChange> {
+fn apply_change(g: &mut Graph, change: &NodeChange) {
     /* TODO: Not thread safe */
     if g.nodes[change.id].x == change.cur_x && g.nodes[change.id].y == change.cur_y {
         g.nodes[change.id].x = change.cur_x + change.delta_x;
         g.nodes[change.id].y = change.cur_y + change.delta_y;
-        Ok(g)
     } else {
         panic!("CARILHO")
     }
 }
 
-fn revert_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph, NodeChange> {
+fn revert_change(g: &mut Graph, change: &NodeChange) {
     /* TODO: Not thread safe */
     if g.nodes[change.id].x == change.cur_x + change.delta_x && g.nodes[change.id].y == change.cur_y + change.delta_y {
         g.nodes[change.id].x = change.cur_x;
         g.nodes[change.id].y = change.cur_y;
-        Ok(g)
     } else {
         panic!("CARILHO")
     }
@@ -60,10 +58,10 @@ pub fn random_change(g: &Graph, (low, high): (f64, f64), rng: &mut rand::rngs::T
     }
 }
 
-/* TODO: These fns are almost the same. There is a smarter way to do this */
-pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<NodeChange> {
-    let mut ret = Vec::new();
-    ret.push(change);
+/* TODO: Should use Either here. Implement Num trait for it. Should be interesting */
+pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> NodeChangeMap {
+    let mut ret = NodeChangeMap::new();
+    ret.insert(change.id, change);
     let mut dist_traveled_prev = 0.0;
     let mut dist_traveled_next = 0.0;
     let mut cur_next = &g.nodes[change.id];
@@ -82,24 +80,30 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: f64) -> Vec<
         if !enough_next {
             let diff_x = change.delta_x * (how_smooth - dist_traveled_next) / how_smooth;
             let diff_y = change.delta_y * (how_smooth - dist_traveled_next) / how_smooth;
-            ret.push(NodeChange {
-                id: cur_next.id,
-                cur_x: cur_next.x,
-                cur_y: cur_next.y,
-                delta_x: diff_x,
-                delta_y: diff_y,
-            });
+            ret.insert(
+                cur_next.id,
+                NodeChange {
+                    id: cur_next.id,
+                    cur_x: cur_next.x,
+                    cur_y: cur_next.y,
+                    delta_x: diff_x,
+                    delta_y: diff_y,
+                },
+            );
         }
         if !enough_prev {
             let diff_x = change.delta_x * (how_smooth - dist_traveled_prev) / how_smooth;
             let diff_y = change.delta_y * (how_smooth - dist_traveled_prev) / how_smooth;
-            ret.push(NodeChange {
-                id: cur_prev.id,
-                cur_x: cur_prev.x,
-                cur_y: cur_prev.y,
-                delta_x: diff_x,
-                delta_y: diff_y,
-            });
+            ret.insert(
+                cur_prev.id,
+                NodeChange {
+                    id: cur_prev.id,
+                    cur_x: cur_prev.x,
+                    cur_y: cur_prev.y,
+                    delta_x: diff_x,
+                    delta_y: diff_y,
+                },
+            );
         }
         if enough_next && enough_prev {
             break;
@@ -161,27 +165,6 @@ pub fn smooth_change_out2(g: &Graph, change: NodeChange, how_smooth: usize) -> N
     ret
 }
 
-fn assert_cyclicness(ts: &ThickSurface) {
-    let fst = &ts.layers[OUTER].nodes[0];
-    let mut j = fst.next(&ts.layers[OUTER]);
-    println!("Going forward...");
-    loop {
-        j = j.next(&ts.layers[OUTER]);
-        if j == fst {
-            break;
-        }
-    }
-    println!("k didnt break it. Going backward...");
-    loop {
-        j = j.prev(&ts.layers[OUTER]);
-        if j == fst {
-            break;
-        }
-    }
-    println!("yay");
-    println!("ts: {:?}", ts);
-}
-
 pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition: NodeAddition) {
     ts.layers[layer_to_which_add].nodes[node_addition.n.next_id].prev_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes[node_addition.n.prev_id].next_id = node_addition.n.id;
@@ -192,8 +175,6 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition
             ..node_addition.n
         },
     );
-
-    // assert_cyclicness(ts);
 }
 
 pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node: Node) {
@@ -214,8 +195,6 @@ pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node:
     /* 3. Shrink vector by 1 */
     let s = ts.layers[layer_from_which_delete].nodes.len();
     ts.layers[layer_from_which_delete].nodes.truncate(s - 1);
-
-    //  assert_cyclicness(ts);
 }
 
 fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &NodeChangeMap) -> (f64, f64) {
@@ -247,17 +226,6 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
         -dir_x * norm(change.delta_x, change.delta_y),
         -dir_y * norm(change.delta_x, change.delta_y),
     )
-}
-
-fn direction_vector2(
-    _graph_across: &Graph,
-    _other_graph: &Graph,
-    _change: &NodeChange,
-    _other_graph_changes: &NodeChangeMap,
-    _compression_factor: f64,
-) -> (f64, f64) {
-    /*TODO: Needs to push each node in the average direction of its correspondent */
-    (0.0, 0.0)
 }
 
 fn direction_from(org: (f64, f64), dst: (f64, f64)) -> (f64, f64) {
@@ -430,7 +398,33 @@ pub fn changes_from_other_graph3(
 mod tests {
     use super::*;
     use graph::{area, circular_graph, circular_thick_surface, node_to_add};
-    
+
+    fn assert_cyclicness(g: &Graph) {
+        let fst = &g.nodes[0];
+        let mut j = fst.next(&g);
+        let mut c = 0;
+        loop {
+            j = j.next(&g);
+            if j == fst {
+                break;
+            }
+            c = c + 1;
+            if c >= g.nodes.len() {
+                panic!("Looping too much forwards in assert_cyclicness")
+            }
+        }
+        c = 0;
+        loop {
+            j = j.prev(&g);
+            if j == fst {
+                break;
+            }
+            c = c + 1;
+            if c >= g.nodes.len() {
+                panic!("Looping too much backwards in assert_cyclicness")
+            }
+        }
+    }
 
     #[test]
     fn change_is_applied_and_reversed() {

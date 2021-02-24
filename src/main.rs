@@ -1,6 +1,5 @@
 mod graph;
 mod graph_change;
-mod playground;
 mod recorders;
 mod renderer;
 mod simulated_annealing;
@@ -78,27 +77,6 @@ fn real_main() {
     )
 }
 
-fn playground_main() {
-    let params: types::Params = match std::fs::read_to_string("parameters.toml") {
-        Err(_) => panic!("No parameters.toml file found in directory"),
-        Ok(content) => toml_table_to_params(content.parse::<toml::Value>().unwrap()),
-    };
-    let mut my_graph = playground::diagonal_ts();
-    let mut rng = rand::thread_rng();
-
-    let (mut renderer, mut window) = renderer::setup_renderer();
-
-    renderer::setup_optimization_and_loop(
-        &mut my_graph,
-        &mut rng,
-        &mut window,
-        &mut renderer,
-        |x, y, _| renderer::lines_playground(x, y),
-        &params,
-    )
-}
-
 fn main() {
-    //playground_main()
     real_main()
 }
