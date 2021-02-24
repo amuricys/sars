@@ -6,7 +6,7 @@ use vector_2d_helpers::{dist, norm};
 
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec1<(f64, f64)>) -> Graph {
     let mut to_return: Graph = Graph { nodes: Vec::new() };
-    let will_get_overridden_by_establish_corrs = 300;
+    let _will_get_overridden_by_establish_corrs = 300;
     let num_points = node_coordinates.len();
     to_return.nodes.push(Node {
         id: 0,
@@ -40,15 +40,15 @@ pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usi
     cyclic_graph_from_coords(&circular_coords)
 }
 
-pub fn debug_straight_surface(num_points: usize) -> ThickSurface {
+pub fn debug_straight_surface(_num_points: usize) -> ThickSurface {
     panic!("Will make it soon");
     // establish_correspondences(&mut outer, &mut inner);
     // ThickSurface{layers: Vec::from([outer, inner]), edges: Vec::new()}
 }
 
 pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
-    let mut outer = circular_graph(0.0, 0.0, radius, num_points);
-    let mut inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
+    let outer = circular_graph(0.0, 0.0, radius, num_points);
+    let inner = circular_graph(0.0, 0.0, radius - thickness, num_points);
     ThickSurface {
         layers: Vec::from([outer, inner]),
     }
@@ -158,7 +158,7 @@ pub fn node_to_delete(g: &Graph, prev: &Node, next: &Node, deletion_threshold: f
 #[cfg(test)]
 mod tests {
     use super::*;
-    use simulated_annealing::debug_changes;
+    
 
     #[test]
     fn we_go_around() {

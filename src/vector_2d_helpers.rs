@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn bisecting_vector_is_in_the_middle() {
-        let ((left_x, left_y), (right_x, right_y)) = ((-1.0, 0.0), (0.0, 1.0));
+        let ((_left_x, _left_y), (_right_x, _right_y)) = ((-1.0, 0.0), (0.0, 1.0));
         assert!(true);
     }
 

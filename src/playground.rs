@@ -17,8 +17,8 @@ pub fn diagonal_ts() -> ThickSurface {
     coords_inner.push((0.4, -0.45));
     coords_inner.push((0.8, -0.85));
 
-    let mut outer_graph = cyclic_graph_from_coords(&coords_outer);
-    let mut inner_graph = cyclic_graph_from_coords(&coords_inner);
+    let outer_graph = cyclic_graph_from_coords(&coords_outer);
+    let inner_graph = cyclic_graph_from_coords(&coords_inner);
 
     ThickSurface {
         layers: vec![outer_graph, inner_graph],

@@ -39,8 +39,8 @@ fn manual_neighbor_changes(
     how_smooth: usize,
     compression_factor: f64,
     stitch: Stitching,
-    low_high: (f64, f64),
-    rng: &mut rand::rngs::ThreadRng,
+    _low_high: (f64, f64),
+    _rng: &mut rand::rngs::ThreadRng,
 ) -> (NodeChangeMap, NodeChangeMap) {
     let smoothed_changes = smooth_change_out2(&ts.layers[layer_to_push], node_change.clone(), how_smooth);
     let smoothed_inner_changes =

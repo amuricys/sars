@@ -9,12 +9,12 @@ use graph_change;
 use piston::{Button, PressEvent};
 use recorders;
 use simulated_annealing;
-use simulated_annealing::step_with_manual_change;
-use std::collections::HashMap;
+
+
 use stitcher;
 use stitcher::Stitching;
-use types::{Node, NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER};
-use vector_2d_helpers::bisecting_vector;
+use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER};
+
 
 type Color = [f32; 4];
 
@@ -69,7 +69,7 @@ impl Renderer {
         });
     }
 
-    fn update(&mut self, args: &UpdateArgs) {
+    fn update(&mut self, _args: &UpdateArgs) {
         // Rotate 2 radians per second.
         // self.rotation += 2.0 * args.dt;
     }

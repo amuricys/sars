@@ -1,7 +1,7 @@
 use graph::{distance_between_nodes, distance_between_points};
-use std::cmp::Ord;
+
 use std::collections::HashMap;
-use types::{Graph, Node, ThickSurface, INNER, OUTER};
+use types::{Node, ThickSurface, INNER, OUTER};
 use vec1::Vec1;
 
 #[derive(Clone)]

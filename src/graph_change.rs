@@ -1,10 +1,10 @@
-use graph::{available_node_id, distance_between_nodes, distance_between_points};
-use piston::input::keyboard::Key::Out;
+use graph::{distance_between_nodes, distance_between_points};
+
 use rand::Rng;
-use std::collections::HashMap;
+
 use stitcher::Stitching;
 use types::*;
-use vector_2d_helpers::{bisecting_vector, dist, lines_intersection, norm};
+use vector_2d_helpers::{bisecting_vector, lines_intersection, norm};
 
 fn apply_change<'a>(g: &'a mut Graph, change: &NodeChange) -> Result<&'a Graph, NodeChange> {
     /* TODO: Not thread safe */
@@ -250,11 +250,11 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
 }
 
 fn direction_vector2(
-    graph_across: &Graph,
-    other_graph: &Graph,
-    change: &NodeChange,
-    other_graph_changes: &NodeChangeMap,
-    compression_factor: f64,
+    _graph_across: &Graph,
+    _other_graph: &Graph,
+    _change: &NodeChange,
+    _other_graph_changes: &NodeChangeMap,
+    _compression_factor: f64,
 ) -> (f64, f64) {
     /*TODO: Needs to push each node in the average direction of its correspondent */
     (0.0, 0.0)
@@ -300,7 +300,7 @@ fn is_change_push(index: usize, graph: &Graph, other_change: &NodeChange) -> boo
         && from_changed_pos_to_inner_node < from_changed_pos_to_outer_node
 }
 
-fn is_change_push2(index: usize, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> bool {
+fn is_change_push2(_index: usize, _graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> bool {
     let (other_cs_next_x, other_cs_next_y) = (other_graph.next(other_change.id).x, other_graph.next(other_change.id).y);
     let (other_cs_prev_x, other_cs_prev_y) = (other_graph.prev(other_change.id).x, other_graph.prev(other_change.id).y);
     let (pre_change_bisecting_x, pre_change_bisecting_y) = bisecting_vector(
@@ -373,14 +373,14 @@ fn for_a_node_affected_make_the(
 }
 
 pub fn changes_from_other_graph(
-    this_graph: &Graph,
+    _this_graph: &Graph,
     other_graph_changes: &NodeChangeMap,
-    compression_factor: f64,
+    _compression_factor: f64,
     Stitching::Stitch(s): Stitching,
 ) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
+    let ret = NodeChangeMap::new();
     for (_, c) in other_graph_changes {
-        let nodes_affected = s[OUTER].get(c.id).clone();
+        let _nodes_affected = s[OUTER].get(c.id).clone();
         // let idk: Vec<NodeChange> = nodes_affected.iter().map(|i| for_a_node_affected_make_the(*i, this_graph, c.clone())).collect();
         // for c in idk {
         //     ret.insert(c.id, c);
@@ -393,7 +393,7 @@ pub fn changes_from_other_graph2(
     this_graph: &Graph,
     other_graph: &Graph,
     other_graph_changes: &NodeChangeMap,
-    compression_factor: f64,
+    _compression_factor: f64,
     Stitching::Stitch(s): Stitching,
 ) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
@@ -414,7 +414,7 @@ pub fn changes_from_other_graph3(
     this_graph: &Graph,
     other_graph: &Graph,
     other_graph_changes: &NodeChangeMap,
-    compression_factor: f64,
+    _compression_factor: f64,
     s: Stitching,
 ) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
@@ -429,8 +429,8 @@ pub fn changes_from_other_graph3(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use graph::{area, circular_graph, circular_thick_surface, cyclic_graph_from_coords, node_to_add};
-    use vec1::Vec1;
+    use graph::{area, circular_graph, circular_thick_surface, node_to_add};
+    
 
     #[test]
     fn change_is_applied_and_reversed() {

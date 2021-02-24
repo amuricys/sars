@@ -1,9 +1,9 @@
 use graph;
 use simulated_annealing;
-use std::collections::HashMap;
+
 use std::fs::File;
 use std::io::Write;
-use std::iter::FromIterator;
+
 use types::{Params, ThickSurface, INNER, OUTER};
 
 type RecorderFn = for<'r, 's> fn(&'r ThickSurface, &'s Params) -> f64;
