@@ -1,8 +1,8 @@
 use graph;
-use graph_change::{add_node_, apply_changes, changes_from_other_graph, changes_from_other_graph3, delete_node_, random_change, revert_changes, smooth_change_out};
+use graph_change::{add_node_, apply_changes, changes_from_other_graph, delete_node_, random_change, revert_changes, smooth_change_out};
 use rand::Rng;
 use stitcher::Stitching;
-use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER, Smooth};
+use types::{NodeChange, NodeChangeMap, Params, Smooth, ThickSurface, INNER, OUTER};
 use vector_2d_helpers::lines_intersection;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
@@ -17,8 +17,13 @@ fn manual_neighbor_changes(
     stitch: Stitching,
 ) -> (NodeChangeMap, NodeChangeMap) {
     let smoothed_changes = smooth_change_out(&ts.layers[layer_to_push], node_change.clone(), Smooth::Count(how_smooth));
-    let smoothed_inner_changes =
-        changes_from_other_graph(&ts.layers[layer_across], &smoothed_changes, compression_factor, stitch);
+    let smoothed_inner_changes = changes_from_other_graph(
+        &ts.layers[layer_across],
+        &ts.layers[layer_to_push],
+        &smoothed_changes,
+        compression_factor,
+        stitch,
+    );
     (smoothed_changes, smoothed_inner_changes)
 }
 
@@ -34,7 +39,7 @@ fn neighbor_changes(
 ) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = random_change(&ts.layers[layer_to_push], low_high, rng);
     let smoothed_changes = smooth_change_out(&ts.layers[layer_to_push], outer_change.clone(), Smooth::Count(how_smooth));
-    let smoothed_inner_changes = changes_from_other_graph3(
+    let smoothed_inner_changes = changes_from_other_graph(
         &ts.layers[layer_across],
         &ts.layers[layer_to_push],
         &smoothed_changes,
@@ -111,12 +116,7 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
     let graph_from_which_delete = &ts.layers[layer_from_which_delete];
 
     for n in &graph_from_which_delete.nodes {
-        match graph::node_to_delete(
-            graph_from_which_delete,
-            n,
-            n.next(&graph_from_which_delete),
-            deletion_threshold,
-        ) {
+        match graph::node_to_delete(graph_from_which_delete, n, n.next(&graph_from_which_delete), deletion_threshold) {
             Some(deletion) => {
                 println!("deleted");
                 delete_node_(ts, layer_from_which_delete, deletion);
@@ -143,23 +143,14 @@ pub fn step(
     let node_addition_threshold = params.node_addition_threshold;
     let node_deletion_threshold = params.node_deletion_threshold;
 
-    let (outer_changes, inner_changes) =
-        neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, stitch, low_high, rng);
+    let (outer_changes, inner_changes) = neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, stitch, low_high, rng);
 
     let energy_state = energy(ts, initial_gray_matter_area);
     apply_changes(&mut ts.layers[OUTER], &outer_changes);
     apply_changes(&mut ts.layers[INNER], &inner_changes);
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
-    intersection_effects(
-        ts,
-        &outer_changes,
-        &inner_changes,
-        energy_state,
-        energy_neighbor,
-        temperature,
-        rng,
-    );
+    intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
     unsafe {
         if !THING {
             add_single_node_effects(ts, OUTER, node_addition_threshold);
@@ -187,29 +178,13 @@ pub fn step_with_manual_change(
     let compression_factor = params.compression_factor;
     let node_addition_threshold = params.node_addition_threshold;
 
-    let (outer_changes, inner_changes) = manual_neighbor_changes(
-        ts,
-        node_change,
-        OUTER,
-        INNER,
-        how_smooth,
-        compression_factor,
-        stitch
-    );
+    let (outer_changes, inner_changes) = manual_neighbor_changes(ts, node_change, OUTER, INNER, how_smooth, compression_factor, stitch);
     let energy_state = energy(ts, initial_gray_matter_area);
     apply_changes(&mut ts.layers[OUTER], &outer_changes);
     apply_changes(&mut ts.layers[INNER], &inner_changes);
     let energy_neighbor = energy(ts, initial_gray_matter_area);
 
-    intersection_effects(
-        ts,
-        &outer_changes,
-        &inner_changes,
-        energy_state,
-        energy_neighbor,
-        temperature,
-        rng,
-    );
+    intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
     add_single_node_effects(ts, OUTER, node_addition_threshold);
     add_single_node_effects(ts, INNER, node_addition_threshold);
 

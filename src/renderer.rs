@@ -11,7 +11,7 @@ use recorders;
 use simulated_annealing;
 
 use stitcher;
-use types::{NodeChange, NodeChangeMap, Params, ThickSurface, INNER, OUTER, Smooth};
+use types::{NodeChange, NodeChangeMap, Params, Smooth, ThickSurface, INNER, OUTER};
 
 type Color = [f32; 4];
 
@@ -69,7 +69,7 @@ impl Renderer {
 
     fn update(&mut self, args: &UpdateArgs) {
         // Rotate very slightly each second (0.02 radians).
-        self.rotation += 0.02 * args.dt;
+        // self.rotation += 0.02 * args.dt;
     }
 }
 
@@ -119,12 +119,7 @@ pub fn lines_playground(ts: &ThickSurface, last_changes: &Vec<NodeChangeMap>) ->
     for l in last_changes {
         for (_n, change) in l {
             lines.push(Line {
-                points: (
-                    change.cur_x,
-                    change.cur_y,
-                    change.cur_x + change.delta_x,
-                    change.cur_y + change.delta_y,
-                ),
+                points: (change.cur_x, change.cur_y, change.cur_x + change.delta_x, change.cur_y + change.delta_y),
                 color: BLUE,
             })
         }
@@ -163,19 +158,11 @@ fn next_state(event: Option<Button>, s: State) -> State {
             ..s
         },
         Some(piston::Button::Keyboard(piston::Key::N)) => State {
-            step_type: if s.one_at_a_time {
-                StepType::OneAtATime
-            } else {
-                s.step_type
-            },
+            step_type: if s.one_at_a_time { StepType::OneAtATime } else { s.step_type },
             ..s
         },
         Some(piston::Button::Keyboard(piston::Key::M)) => State {
-            step_type: if s.one_at_a_time {
-                StepType::ManualChange
-            } else {
-                s.step_type
-            },
+            step_type: if s.one_at_a_time { StepType::ManualChange } else { s.step_type },
             ..s
         },
         Some(piston::Button::Keyboard(piston::Key::R)) => State {
@@ -286,15 +273,9 @@ pub fn setup_optimization_and_loop<F>(
                         delta_x: cursor_pos_x - closest_node.x,
                         delta_y: cursor_pos_y - closest_node.y,
                     };
-                    let surrounding_imaginary_changes =
-                        graph_change::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Continuous(params.how_smooth as f64));
-                    let inner_imaginary_changes = graph_change::changes_from_other_graph3(
-                        &ts.layers[INNER],
-                        &ts.layers[OUTER],
-                        &surrounding_imaginary_changes,
-                        0.0,
-                        stitching.clone(),
-                    );
+                    let surrounding_imaginary_changes = graph_change::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
+                    let inner_imaginary_changes =
+                        graph_change::changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, stitching.clone());
                     lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
                 }
                 None => imaginary_lines,
@@ -325,33 +306,15 @@ pub fn setup_optimization_and_loop<F>(
                 )
             }
             StepType::OneAtATime => {
-                changeset = simulated_annealing::step(
-                    ts,
-                    params.initial_gray_matter_area,
-                    state.temperature,
-                    stitching.clone(),
-                    params,
-                    rng,
-                )
+                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, stitching.clone(), params, rng)
             }
             StepType::Automatic => {
-                changeset = simulated_annealing::step(
-                    ts,
-                    params.initial_gray_matter_area,
-                    state.temperature,
-                    stitching.clone(),
-                    params,
-                    rng,
-                )
+                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, stitching.clone(), params, rng)
             }
             StepType::Reset => {
                 *ts = {
                     changeset = vec![];
-                    graph::circular_thick_surface(
-                        params.initial_radius,
-                        params.initial_thickness,
-                        params.initial_num_points,
-                    )
+                    graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points)
                 }
             }
             StepType::NoStep => {}

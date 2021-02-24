@@ -74,6 +74,18 @@ impl Stitching {
             }
         }
     }
+
+    pub fn get(&self, layer_id: usize, n: Node) -> Vec1<usize> {
+        match self {
+            Stitching::Stitch(layers) => {
+                match Vec1::try_from_vec(layers[layer_id].get(n.id).iter().map(|(id, _, _)| *id).collect::<Vec<usize>>()) {
+                    Ok(s) => s,
+                    Err(_)=> panic!("VA SE FUDER")
+                }
+            }
+        }
+    }
+
     pub fn get_closest_correspondent(&self, layer_id: usize, n: Node) -> usize {
         match self {
             Stitching::Stitch(layers) => {
@@ -109,11 +121,7 @@ fn greedy(ts: &ThickSurface) -> Stitching {
         ts.layers[i]
             .nodes
             .iter()
-            .min_by(|n1, n2| {
-                distance_between_nodes(*n1, out_n)
-                    .partial_cmp(&distance_between_nodes(*n2, out_n))
-                    .unwrap()
-            })
+            .min_by(|n1, n2| distance_between_nodes(*n1, out_n).partial_cmp(&distance_between_nodes(*n2, out_n)).unwrap())
             .unwrap(),
     );
     while out_c <= ts.layers[o].nodes.len() && inn_c <= ts.layers[i].nodes.len() {

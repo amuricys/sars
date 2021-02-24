@@ -3,11 +3,11 @@ use std::collections::HashMap;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Smooth<L, R> {
     Count(L),
-    Continuous(R)
+    Continuous(R),
 }
 
 impl Smooth<usize, f64> {
-    pub fn as_f64 (&self) -> f64 {
+    pub fn as_f64(&self) -> f64 {
         match self {
             Smooth::Count(int) => *int as f64,
             Smooth::Continuous(flo) => *flo,

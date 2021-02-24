@@ -57,12 +57,10 @@ pub fn create_file_with_header(file_path: &str, recorders: &Vec<String>) -> Opti
         }; // remove leading comma
 
         return match File::create(file_path) {
-            Ok(mut f) => {
-                match f.write_all(header.as_bytes()) {
-                    Ok(_) => Some(f),
-                    Err(e) => panic!("Couldn't write to file: {:?}", e)
-                }
-            }
+            Ok(mut f) => match f.write_all(header.as_bytes()) {
+                Ok(_) => Some(f),
+                Err(e) => panic!("Couldn't write to file: {:?}", e),
+            },
             Err(_) => None,
         };
     }
@@ -83,7 +81,7 @@ pub fn record(ts: &ThickSurface, p: &Params, f: &mut File) {
         line.remove(0);
     }; // remove leading comma
     match f.write_all(line.as_bytes()) {
-        Ok(_) => { },
-        Err(e) => panic!("Couldn't write to file: {:?}", e)
+        Ok(_) => {}
+        Err(e) => panic!("Couldn't write to file: {:?}", e),
     }
 }

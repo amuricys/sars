@@ -15,6 +15,7 @@ extern crate piston;
 extern crate rand;
 extern crate toml;
 extern crate vec1;
+extern crate core;
 
 use std::f64::consts::PI;
 
@@ -58,11 +59,7 @@ fn real_main() {
         Err(_) => panic!("No parameters.toml file found in directory"),
         Ok(content) => toml_table_to_params(content.parse::<toml::Value>().unwrap()),
     };
-    let mut my_graph = graph::circular_thick_surface(
-        params.initial_radius,
-        params.initial_thickness,
-        params.initial_num_points,
-    );
+    let mut my_graph = graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points);
     let mut rng = rand::thread_rng();
 
     let (mut renderer, mut window) = renderer::setup_renderer();

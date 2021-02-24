@@ -5,6 +5,8 @@ use rand::Rng;
 use stitcher::Stitching;
 use types::*;
 use vector_2d_helpers::{bisecting_vector, lines_intersection, norm};
+use vec1::Vec1;
+use core::panicking::panic_fmt;
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {
     /* TODO: Not thread safe */
@@ -76,7 +78,7 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: Smooth<usize
 
     let mut dist_traveled_prev = match how_smooth {
         Smooth::Count(_) => Smooth::Count(0),
-        Smooth::Continuous(_) => Smooth::Continuous(0.0)
+        Smooth::Continuous(_) => Smooth::Continuous(0.0),
     };
     let mut dist_traveled_next = dist_traveled_prev;
     let mut cur_next = &g.nodes[change.id];
@@ -87,7 +89,7 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: Smooth<usize
         cur_next = cur_next.next(g);
         cur_prev = cur_prev.prev(g);
 
-        dist_traveled_next = dist_traveled_next.add( distance_between_nodes(&g.nodes[change.id], cur_next));
+        dist_traveled_next = dist_traveled_next.add(distance_between_nodes(&g.nodes[change.id], cur_next));
         dist_traveled_prev = dist_traveled_prev.add(distance_between_nodes(&g.nodes[change.id], cur_prev));
 
         let enough_next = dist_traveled_next.as_f64() > how_smooth_f64;
@@ -154,19 +156,9 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
         None => (changed_nodes_next.x, changed_nodes_next.y),
     };
     /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
-    let (dir_x, dir_y) = bisecting_vector(
-        change.cur_x,
-        change.cur_y,
-        prev_ref_x,
-        prev_ref_y,
-        next_ref_x,
-        next_ref_y,
-    );
+    let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, prev_ref_x, prev_ref_y, next_ref_x, next_ref_y);
 
-    (
-        -dir_x * norm(change.delta_x, change.delta_y),
-        -dir_y * norm(change.delta_x, change.delta_y),
-    )
+    (-dir_x * norm(change.delta_x, change.delta_y), -dir_y * norm(change.delta_x, change.delta_y))
 }
 
 fn direction_from(org: (f64, f64), dst: (f64, f64)) -> (f64, f64) {
@@ -193,25 +185,9 @@ fn would_change_intersect(index: usize, graph: &Graph, other_graph: &Graph, othe
     }
 }
 
-fn is_change_push(index: usize, graph: &Graph, other_change: &NodeChange) -> bool {
-    let (changed_x, changed_y) = other_change.changed_pos();
-    let from_changed_pos_to_inner_node =
-        distance_between_points(changed_x, changed_y, graph.nodes[index].x, graph.nodes[index].y);
-    let from_changed_pos_to_outer_node =
-        distance_between_points(changed_x, changed_y, other_change.cur_x, other_change.cur_y);
-    let original_distance = distance_between_points(
-        other_change.cur_x,
-        other_change.cur_y,
-        graph.nodes[index].x,
-        graph.nodes[index].y,
-    );
-    from_changed_pos_to_inner_node > original_distance / 2.0
-        && from_changed_pos_to_inner_node < from_changed_pos_to_outer_node
-}
-
-fn is_change_push2(_index: usize, _graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> bool {
-    let (other_cs_next_x, other_cs_next_y) = (other_graph.next(other_change.id).x, other_graph.next(other_change.id).y);
-    let (other_cs_prev_x, other_cs_prev_y) = (other_graph.prev(other_change.id).x, other_graph.prev(other_change.id).y);
+fn is_change_push2(index: usize, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> bool {
+    let (other_cs_next_x, other_cs_next_y) = other_graph.next(other_change.id).pos();
+    let (other_cs_prev_x, other_cs_prev_y) = other_graph.prev(other_change.id).pos();
     let (pre_change_bisecting_x, pre_change_bisecting_y) = bisecting_vector(
         other_change.cur_x,
         other_change.cur_y,
@@ -220,57 +196,42 @@ fn is_change_push2(_index: usize, _graph: &Graph, other_graph: &Graph, other_cha
         other_cs_prev_x,
         other_cs_prev_y,
     );
+    println!("pre_change: {}, {}", other_change.cur_x, other_change.cur_y);
+    println!("bisecting: {}, {}", pre_change_bisecting_x, pre_change_bisecting_y);
+    println!(
+        "post_change: {}, {}\n",
+        other_change.cur_x + other_change.delta_x,
+        other_change.cur_y + other_change.delta_x
+    );
 
+    let dist_cur_to_bisecting = distance_between_points(other_change.cur_x, other_change.cur_y, pre_change_bisecting_x, pre_change_bisecting_y);
     let dist_changed_to_bisecting = distance_between_points(
         other_change.changed_pos().0,
         other_change.changed_pos().1,
         pre_change_bisecting_x,
         pre_change_bisecting_y,
     );
-    dist_changed_to_bisecting < 2.0
+    let dist_cur_to_inner = distance_between_points(other_change.cur_x, other_change.cur_y, graph.nodes[index].x, graph.nodes[index].y);
+    dist_cur_to_bisecting > dist_changed_to_bisecting + dist_cur_to_inner
 }
 
-fn for_a_node_affected_make_the(
-    index: usize,
-    graph: &Graph,
-    other_graph: &Graph,
-    other_change: &NodeChange,
-) -> NodeChange {
+fn for_a_node_affected_make_the(index: usize, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> NodeChange {
     let (potentially_wrongly_signed_dir_x, potentially_wrongly_signed_dir_y) = direction_from(
         (graph.nodes[index].x, graph.nodes[index].y),
-        (
-            other_change.cur_x + other_change.delta_x,
-            other_change.cur_y + other_change.delta_y,
-        ),
+        (other_change.cur_x + other_change.delta_x, other_change.cur_y + other_change.delta_y),
     );
-    let (direction_x, direction_y) = if is_change_push2(index, graph, other_graph, other_change)
-    // would_change_intersect(index, graph, other_graph, other_change)
-    {
+    let (direction_x, direction_y) = if is_change_push2(index, graph, other_graph, other_change) {
         (-potentially_wrongly_signed_dir_x, -potentially_wrongly_signed_dir_y)
     } else {
         (potentially_wrongly_signed_dir_x, potentially_wrongly_signed_dir_y)
     };
-    let distance_to_original_position = norm(
-        graph.nodes[index].x - other_change.cur_x,
-        graph.nodes[index].y - other_change.cur_y,
-    );
+    let distance_to_original_position = norm(graph.nodes[index].x - other_change.cur_x, graph.nodes[index].y - other_change.cur_y);
 
-    let (desired_delta_x, desired_delta_y) = (
-        direction_x * distance_to_original_position,
-        direction_y * distance_to_original_position,
-    );
-    let (changed_nodes_new_pos_x, changed_nodes_new_pos_y) = (
-        other_change.cur_x + other_change.delta_x,
-        other_change.cur_y + other_change.delta_y,
-    );
-    let (desired_pos_x, desired_pos_y) = (
-        changed_nodes_new_pos_x - desired_delta_x,
-        changed_nodes_new_pos_y - desired_delta_y,
-    );
-    let (delta_from_current_node_to_desired_pos_x, delta_from_current_node_to_desired_pos_y) = (
-        desired_pos_x - graph.nodes[index].x,
-        desired_pos_y - graph.nodes[index].y,
-    );
+    let (desired_delta_x, desired_delta_y) = (direction_x * distance_to_original_position, direction_y * distance_to_original_position);
+    let (changed_nodes_new_pos_x, changed_nodes_new_pos_y) = (other_change.cur_x + other_change.delta_x, other_change.cur_y + other_change.delta_y);
+    let (desired_pos_x, desired_pos_y) = (changed_nodes_new_pos_x - desired_delta_x, changed_nodes_new_pos_y - desired_delta_y);
+    let (delta_from_current_node_to_desired_pos_x, delta_from_current_node_to_desired_pos_y) =
+        (desired_pos_x - graph.nodes[index].x, desired_pos_y - graph.nodes[index].y);
 
     NodeChange {
         id: index,
@@ -281,45 +242,11 @@ fn for_a_node_affected_make_the(
     }
 }
 
+fn for_ALL_nodes_affected_make_the(index: Vec1<usize>, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> NodeChange {
+    panic!("Tomar no cu")
+}
+
 pub fn changes_from_other_graph(
-    _this_graph: &Graph,
-    other_graph_changes: &NodeChangeMap,
-    _compression_factor: f64,
-    Stitching::Stitch(s): Stitching,
-) -> NodeChangeMap {
-    let ret = NodeChangeMap::new();
-    for (_, c) in other_graph_changes {
-        let _nodes_affected = s[OUTER].get(c.id).clone();
-        // let idk: Vec<NodeChange> = nodes_affected.iter().map(|i| for_a_node_affected_make_the(*i, this_graph, c.clone())).collect();
-        // for c in idk {
-        //     ret.insert(c.id, c);
-        // }
-    }
-    ret
-}
-
-pub fn changes_from_other_graph2(
-    this_graph: &Graph,
-    other_graph: &Graph,
-    other_graph_changes: &NodeChangeMap,
-    _compression_factor: f64,
-    Stitching::Stitch(s): Stitching,
-) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    for (_, c) in other_graph_changes {
-        let nodes_affected = s[OUTER].get(c.id).clone();
-        let idk: Vec<NodeChange> = nodes_affected
-            .iter()
-            .map(|i| for_a_node_affected_make_the(i.0, this_graph, other_graph, c))
-            .collect();
-        for c in idk {
-            ret.insert(c.id, c);
-        }
-    }
-    ret
-}
-
-pub fn changes_from_other_graph3(
     this_graph: &Graph,
     other_graph: &Graph,
     other_graph_changes: &NodeChangeMap,
@@ -330,6 +257,22 @@ pub fn changes_from_other_graph3(
     for (_, c) in other_graph_changes {
         let closest_node_affected = s.get_closest_correspondent(OUTER, other_graph.nodes[c.id].clone());
         let inner_change = for_a_node_affected_make_the(closest_node_affected, this_graph, other_graph, c);
+        ret.insert(inner_change.id, inner_change);
+    }
+    ret
+}
+
+pub fn changes_from_other_graph2(
+    this_graph: &Graph,
+    other_graph: &Graph,
+    other_graph_changes: &NodeChangeMap,
+    _compression_factor: f64,
+    s: Stitching,
+) -> NodeChangeMap {
+    let mut ret = NodeChangeMap::new();
+    for (_, c) in other_graph_changes {
+        let closest_node_affected = s.get(OUTER, other_graph.nodes[c.id].clone());
+        let inner_change = for_ALL_nodes_affected_make_the(closest_node_affected, this_graph, other_graph, c);
         ret.insert(inner_change.id, inner_change);
     }
     ret
