@@ -241,7 +241,7 @@ fn for_a_node_affected_make_the(index: usize, graph: &Graph, other_graph: &Graph
     }
 }
 
-fn for_ALL_nodes_affected_make_the(index: Vec1<usize>, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> NodeChange {
+fn for_ALL_nodes_affected_make_the(_index: Vec1<usize>, _graph: &Graph, _other_graph: &Graph, _other_change: &NodeChange) -> NodeChange {
     panic!("Tomar no cu")
 }
 

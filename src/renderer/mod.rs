@@ -5,11 +5,11 @@ mod junk;
 
 use glutin_window::GlutinWindow as Window;
 use piston::event_loop::{EventSettings, Events};
-use piston::input::{MouseCursorEvent, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::input::{MouseCursorEvent, RenderEvent, UpdateEvent};
 use piston::window::WindowSettings;
 
 use graph;
-use graph::effects;
+
 use piston::{Button, PressEvent};
 use recorders;
 use simulated_annealing;
@@ -17,7 +17,7 @@ use simulated_annealing;
 use stitcher;
 use types::Params;
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-use graph::{circular_thick_surface, cyclic_graph_from_coords};
+
 
 pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v): &stitcher::Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();

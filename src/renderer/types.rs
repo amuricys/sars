@@ -1,6 +1,6 @@
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::input::{MouseCursorEvent, RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
-use renderer::junk::{from_minus1_1_to_window, from_window_to_minus1_1};
+use renderer::junk::{from_minus1_1_to_window};
 pub type Color = [f32; 4];
 
 pub struct Renderer {
@@ -44,7 +44,7 @@ impl Renderer {
         });
     }
 
-    pub fn update(&mut self, args: &UpdateArgs) {
+    pub fn update(&mut self, _args: &UpdateArgs) {
         // Rotate very slightly each second (0.02 radians).
         // self.rotation += 0.02 * args.dt;
     }
