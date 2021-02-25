@@ -1,5 +1,4 @@
 mod graph;
-mod graph_change;
 mod recorders;
 mod renderer;
 mod simulated_annealing;
@@ -17,7 +16,7 @@ extern crate toml;
 extern crate vec1;
 
 use std::f64::consts::PI;
-use renderer::draw_mode_rendering;
+use renderer::draw_mode::draw_mode_rendering;
 
 fn toml_table_to_params(table: toml::Value) -> types::Params {
     match table {

@@ -3,7 +3,7 @@ use graph::{distance_between_nodes, distance_between_points};
 use rand::Rng;
 
 use stitcher::Stitching;
-use types::*;
+use graph::types::*;
 use vector_2d_helpers::{bisecting_vector, lines_intersection, norm};
 use vec1::Vec1;
 

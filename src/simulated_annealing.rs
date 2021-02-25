@@ -1,8 +1,9 @@
 use graph;
-use graph_change::{add_node_, apply_changes, changes_from_other_graph, delete_node_, random_change, revert_changes, smooth_change_out};
+use graph::effects::{add_node_, apply_changes, changes_from_other_graph, delete_node_, random_change, revert_changes, smooth_change_out};
 use rand::Rng;
 use stitcher::Stitching;
-use types::{NodeChange, NodeChangeMap, Params, Smooth, ThickSurface, INNER, OUTER};
+use types::Params;
+use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use vector_2d_helpers::lines_intersection;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;

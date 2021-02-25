@@ -1,6 +1,9 @@
+pub mod effects;
+pub mod types;
+
 use std::f64::consts::PI;
 
-use types::*;
+use graph::types::*;
 use vec1::Vec1;
 use vector_2d_helpers::{dist, norm};
 

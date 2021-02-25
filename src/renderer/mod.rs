@@ -1,88 +1,32 @@
+pub mod draw_mode;
+mod consts;
+mod types;
+mod junk;
+
 use glutin_window::GlutinWindow as Window;
-use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
-use piston::input::{MouseCursorEvent, RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::input::{MouseCursorEvent, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 
 use graph;
-use graph_change;
+use graph::effects;
 use piston::{Button, PressEvent};
 use recorders;
 use simulated_annealing;
 
 use stitcher;
-use types::{NodeChange, NodeChangeMap, Params, Smooth, ThickSurface, INNER, OUTER};
+use types::Params;
+use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use graph::{circular_thick_surface, cyclic_graph_from_coords};
 
-type Color = [f32; 4];
-
-const BLACK: Color = [0.0, 0.0, 0.0, 0.0];
-const WHITE: Color = [1.0, 1.0, 1.0, 1.0];
-const PURPLE: Color = [0.8, 0.0, 0.8, 1.0];
-const PINK: Color = [1.0, 0.4, 1.0, 1.0];
-const BLUE: Color = [0.2, 0.2, 1.0, 1.0];
-const GREEN: Color = [0.2, 1.0, 0.2, 1.0];
-const RED: Color = [1.0, 0.0, 0.2, 1.0];
-const _COLORS: [Color; 6] = [BLACK, WHITE, PURPLE, PINK, BLUE, GREEN];
-
-pub struct Renderer {
-    gl: GlGraphics,
-    // OpenGL drawing backend.
-    rotation: f64, // Rotation for the square.
-}
-
-#[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
-pub struct Line {
-    points: (f64, f64, f64, f64),
-    color: Color,
-}
-
-/* These two are NOT INVERSES */
-fn from_minus1_1_to_window(x: f64, y: f64, window_size_x: f64, window_size_y: f64) -> (f64, f64) {
-    (x * window_size_x / 2.0, y * (-window_size_y / 2.0))
-}
-
-fn from_window_to_minus1_1(x: f64, y: f64, window_size_x: f64, window_size_y: f64) -> (f64, f64) {
-    (2.0 * x / window_size_x - 1.0, (-2.0 * y / window_size_y) + 1.0)
-}
-
-impl Renderer {
-    fn render(&mut self, args: &RenderArgs, lines: &Vec<Line>) {
-        use graphics::*;
-
-        let rotation = self.rotation;
-        let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
-
-        self.gl.draw(args.viewport(), |c, gl| {
-            // Clear the screen.
-            clear(BLACK, gl);
-
-            let transform = c.transform.trans(x, y).rot_rad(rotation).trans(-0.0, -0.0);
-
-            for l in lines {
-                let (x1, y1, x2, y2) = l.points;
-                let col = l.color;
-                let from = from_minus1_1_to_window(x1, y1, args.window_size[0], args.window_size[1]);
-                let to = from_minus1_1_to_window(x2, y2, args.window_size[0], args.window_size[1]);
-                line_from_to(col, 0.5, [from.0, from.1], [to.0, to.1], transform, gl);
-            }
-        });
-    }
-
-    fn update(&mut self, args: &UpdateArgs) {
-        // Rotate very slightly each second (0.02 radians).
-        // self.rotation += 0.02 * args.dt;
-    }
-}
-
-pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v): &stitcher::Stitching) -> Vec<Line> {
+pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v): &stitcher::Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
         for node in &g.nodes {
-            lines.push(Line {
+            lines.push(types::Line {
                 points: (node.x, node.y, node.next(g).x, node.next(g).y),
-                color: PINK,
+                color: consts::PINK,
             });
         }
     }
@@ -92,38 +36,10 @@ pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v
         for val in v {
             let inner_x = ts.layers[INNER].nodes[val.0].x;
             let inner_y = ts.layers[INNER].nodes[val.0].y;
-            lines.push(Line {
+            lines.push(types::Line {
                 points: (outer_x, outer_y, inner_x, inner_y),
-                color: PURPLE,
+                color: consts::PURPLE,
             });
-        }
-    }
-    lines
-}
-
-pub fn lines_playground(ts: &ThickSurface, last_changes: &Vec<NodeChangeMap>) -> Vec<Line> {
-    /* Ignores first node and renders node changes for every layer of node changes */
-    let mut lines = Vec::new();
-    for i in 0..ts.layers.len() {
-        let g = &ts.layers[i];
-        for node in &g.nodes {
-            if node.id != 0 && node.next(g).id != 0 {
-                lines.push(Line {
-                    points: (node.x, node.y, node.next(g).x, node.next(g).y),
-                    color: PINK,
-                });
-                if i == OUTER {
-                    if i == OUTER { /* TODO: get lines based on acrossness map/matrix */ }
-                }
-            }
-        }
-    }
-    for l in last_changes {
-        for (_n, change) in l {
-            lines.push(Line {
-                points: (change.cur_x, change.cur_y, change.cur_x + change.delta_x, change.cur_y + change.delta_y),
-                color: BLUE,
-            })
         }
     }
     lines
@@ -196,7 +112,7 @@ fn initial_state(initial_temperature: f64) -> State {
     }
 }
 
-fn lines_from_change_map(ts: &ThickSurface, change_maps: Vec<NodeChangeMap>) -> Vec<Line> {
+fn lines_from_change_map(ts: &ThickSurface, change_maps: Vec<NodeChangeMap>) -> Vec<types::Line> {
     let mut ret = Vec::new();
     for i in 0..ts.layers.len() {
         for (_, c) in &change_maps[i] {
@@ -220,16 +136,16 @@ fn lines_from_change_map(ts: &ThickSurface, change_maps: Vec<NodeChangeMap>) -> 
                     ts.layers[i].nodes[ts.layers[i].nodes[c.id].prev_id].y,
                 ),
             };
-            ret.push(Line {
+            ret.push(types::Line {
                 points: (c.cur_x + c.delta_x, c.cur_y + c.delta_y, cs_next_x, cs_next_y),
-                color: BLUE,
+                color: consts::BLUE,
             });
-            ret.push(Line {
+            ret.push(types::Line {
                 points: (c.cur_x + c.delta_x, c.cur_y + c.delta_y, cs_prev_x, cs_prev_y),
-                color: BLUE,
+                color: consts::BLUE,
             });
             // let (reference_x, reference_y) = bisecting_vector(c.cur_x + c.delta_x, c.cur_y + c.delta_y, cs_next_x, cs_next_y, cs_prev_x, cs_prev_y);
-            // ret.push(Line {points: (c.cur_x + c.delta_x, c.cur_y + c.delta_y, reference_x, reference_y), color: GREEN});
+            // ret.push(types::Line {points: (c.cur_x + c.delta_x, c.cur_y + c.delta_y, reference_x, reference_y), color: consts::GREEN});
         }
     }
     ret
@@ -239,11 +155,11 @@ pub fn setup_optimization_and_loop<F>(
     ts: &mut ThickSurface,
     rng: &mut rand::rngs::ThreadRng,
     window: &mut Window,
-    renderer: &mut Renderer,
+    renderer: &mut types::Renderer,
     how_to_make_lines: F,
     params: &Params,
 ) where
-    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &stitcher::Stitching) -> Vec<Line>,
+    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &stitcher::Stitching) -> Vec<types::Line>,
 {
     let mut state = initial_state(params.initial_temperature);
     let mut stitching = stitcher::stitch(ts);
@@ -266,7 +182,7 @@ pub fn setup_optimization_and_loop<F>(
         } else {
             match e.mouse_cursor_args() {
                 Some([x, y]) => {
-                    let (cursor_pos_x, cursor_pos_y) = from_window_to_minus1_1(x, y, 800.0, 800.0);
+                    let (cursor_pos_x, cursor_pos_y) = junk::from_window_to_minus1_1(x, y, 800.0, 800.0);
                     let closest_node = graph::closest_node_to_some_point(&ts.layers[OUTER], cursor_pos_x, cursor_pos_y);
                     let imaginary_change = NodeChange {
                         id: closest_node.id,
@@ -275,9 +191,9 @@ pub fn setup_optimization_and_loop<F>(
                         delta_x: cursor_pos_x - closest_node.x,
                         delta_y: cursor_pos_y - closest_node.y,
                     };
-                    let surrounding_imaginary_changes = graph_change::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
+                    let surrounding_imaginary_changes = graph::effects::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
                     let inner_imaginary_changes =
-                        graph_change::changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, stitching.clone());
+                        graph::effects::changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, stitching.clone());
                     lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
                 }
                 None => imaginary_lines,
@@ -331,94 +247,16 @@ pub fn setup_optimization_and_loop<F>(
     }
 }
 
-fn mk_lines(points: &Vec<(f64, f64)>, color: Color) -> Vec<Line> {
-    let mut lines = Vec::new();
-    if points.len() >= 2 {
-        for i in 0..points.len() - 1 {
-            lines.push(Line { points: (points[i].0, points[i].1, points[i + 1].0, points[i + 1].1), color: color });
-        }
-    }
-    lines
-}
-
-enum DrawModeMode {
-    Outer,
-    Inner,
-    Surface
-}
-
-pub fn draw_mode_rendering(
-    window: &mut Window,
-    renderer: &mut Renderer,
-) {
-    let mut outer_points: Vec<(f64, f64)> = Vec::new();
-    let mut inner_points: Vec<(f64, f64)> = Vec::new();
-    let mut last_mouse_pos = (0.0, 0.0);
-    let mut events = Events::new(EventSettings::new());
-    let mut drawmodemode = DrawModeMode::Outer;
-    let mut thick_surface = circular_thick_surface(0.0, 0.0, 1);
-    let mut stitching = stitcher::Stitching::new();
-
-    while let Some(e) = events.next(window) {
-        let outer_lines = mk_lines(&outer_points, RED);
-        let inner_lines = mk_lines(&inner_points, BLUE);
-        if let Some(args) = e.render_args() {
-            let mut cpy = outer_lines.clone();
-            let mut cpy2 = inner_lines.clone();
-            cpy.append(&mut cpy2);
-            cpy = match drawmodemode {
-                DrawModeMode::Surface => lines_from_thick_surface(&thick_surface, &stitching),
-                _ => cpy
-            };
-            renderer.render(&args, &cpy);
-        }
-
-        last_mouse_pos = match e.mouse_cursor_args() {
-            Some([x, y]) => {
-                from_window_to_minus1_1(x, y, 800.0, 800.0)
-            }
-            None => last_mouse_pos,
-        };
-        match e.press_args() {
-            Some(Button::Mouse(piston::MouseButton::Left)) => {
-                match drawmodemode {
-                    DrawModeMode::Outer => outer_points.push(last_mouse_pos),
-                    DrawModeMode::Inner => inner_points.push(last_mouse_pos),
-                    _ => { }
-                }
-            }
-            Some(Button::Mouse(piston::MouseButton::Right)) => {
-                drawmodemode = match drawmodemode {
-                    DrawModeMode::Outer => DrawModeMode::Inner,
-                    DrawModeMode::Inner => DrawModeMode::Outer,
-                    _ => DrawModeMode::Outer
-                }
-            }
-            Some(Button::Mouse(piston::MouseButton::Middle)) => {
-                thick_surface.layers[OUTER] = cyclic_graph_from_coords(&outer_points);
-                thick_surface.layers[INNER] = cyclic_graph_from_coords(&inner_points);
-                stitching = stitcher::stitch(&thick_surface);
-                drawmodemode = DrawModeMode::Surface;
-            }
-            _ => {}
-        }
-    }
-}
-
-pub fn setup_renderer() -> (Renderer, Window) {
-    let opengl = OpenGL::V3_2;
-
+pub fn setup_renderer() -> (types::Renderer, Window) {
     // Create an Glutin window.
     let window: Window = WindowSettings::new("spinning-square", [800, 800])
-        .graphics_api(opengl)
+        .graphics_api(types::Renderer::gl_ver())
         .exit_on_esc(true)
         .build()
         .unwrap();
 
     // Create a new game and run it.
-    let app = Renderer {
-        gl: GlGraphics::new(opengl),
-        rotation: 0.0,
-    };
+    let app = types::Renderer::new();
+
     (app, window)
 }
