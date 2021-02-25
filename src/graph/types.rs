@@ -151,3 +151,9 @@ pub const INNER: usize = 1;
 pub struct ThickSurface {
     pub layers: Vec<Graph>,
 }
+
+impl ThickSurface {
+    pub(crate) fn new(outer: Graph, inner: Graph) -> ThickSurface {
+        ThickSurface {layers: vec! [outer, inner]}
+    }
+}

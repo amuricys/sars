@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use graph::types::{Node, ThickSurface, INNER, OUTER};
 use vec1::Vec1;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ListMap {
     LMap(HashMap<usize, Vec1<(usize, f64, f64)>>),
 }
@@ -26,11 +26,21 @@ impl ListMap {
     pub fn put(&mut self, key: usize, val: (usize, f64, f64)) {
         match self {
             ListMap::LMap(m) => match m.get_mut(&key) {
-                Some(v) => v.push(val),
+                Some(v) => {
+                    if !v.iter().any(|(x, _, _)| *x == val.0) { // No duplicates in Stitching correspondences
+                        v.push(val)
+                    }
+                },
                 None => {
                     m.insert(key, Vec1::new(val));
                 }
             },
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            ListMap::LMap(m) => m.len()
         }
     }
 }
@@ -57,7 +67,7 @@ impl<'a> IntoIterator for &'a ListMap {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Stitching {
     Stitch(Vec<ListMap>),
 }
@@ -66,7 +76,7 @@ impl Stitching {
     pub fn new() -> Stitching {
         Stitching::Stitch(Vec::from([ListMap::new(), ListMap::new()]))
     }
-    fn put(&mut self, inn: (usize, f64, f64), out: (usize, f64, f64)) {
+    pub fn put(&mut self, inn: (usize, f64, f64), out: (usize, f64, f64)) {
         match self {
             Stitching::Stitch(layers) => {
                 layers[OUTER].put(out.0, inn);
@@ -99,6 +109,24 @@ impl Stitching {
                     })
                     .unwrap()
                     .0
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Stitching::Stitch(layers) => {
+                fn corrs_amt(v: &ListMap) -> usize {
+                    let mut amt = 0;
+                    for (_, c) in v { amt = amt + c.len(); }
+                    amt
+                }
+                let (outer_amt, inner_amt) = (corrs_amt(&layers[OUTER]), corrs_amt(&layers[INNER]));
+                if outer_amt == inner_amt {
+                    outer_amt
+                } else {
+                    panic!(format!("Outer: {:?}; Inner: {:?}. Should never happen.", outer_amt, inner_amt))
+                }
             }
         }
     }
