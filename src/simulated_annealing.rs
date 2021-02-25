@@ -4,7 +4,7 @@ use rand::Rng;
 use stitcher::Stitching;
 use types::Params;
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-use vector_2d_helpers::lines_intersection;
+use linalg_helpers::lines_intersection;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
 

@@ -1,11 +1,10 @@
 pub mod effects;
 pub mod types;
 
-use std::f64::consts::PI;
+
 
 use graph::types::*;
-use vec1::Vec1;
-use vector_2d_helpers::{dist, norm};
+use linalg_helpers;
 
 // TODO: MAKE IT NT CYCLICAL
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
@@ -33,14 +32,8 @@ pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
 }
 
 pub fn circular_graph(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Graph {
-    let mut circular_coords = Vec1::new((center_x + radius, center_y));
-    for i in 1..num_points {
-        circular_coords.push((
-            center_x + (i as f64 * (2.0 * PI) / num_points as f64).cos() * radius,
-            center_y + (i as f64 * (2.0 * PI) / num_points as f64).sin() * radius,
-        ))
-    }
-    cyclic_graph_from_coords(circular_coords.as_vec())
+    let circular_coords = linalg_helpers::circular_points(center_x, center_y, radius, num_points);
+    cyclic_graph_from_coords(&circular_coords)
 }
 
 pub fn circular_thick_surface(radius: f64, thickness: f64, num_points: usize) -> ThickSurface {
@@ -73,7 +66,7 @@ pub fn perimeter(g: &Graph) -> f64 {
     loop {
         let next = cur.next(g);
 
-        ret = ret + norm(cur.x - next.x, cur.y - next.y);
+        ret = ret + linalg_helpers::norm(cur.x - next.x, cur.y - next.y);
 
         cur = next;
         if cur == first {
@@ -97,8 +90,8 @@ pub fn closest_node_to_some_point(graph: &Graph, some_point_x: f64, some_point_y
         .nodes
         .iter()
         .min_by(|n1, n2| {
-            dist(n1.x, n1.y, some_point_x, some_point_y)
-                .partial_cmp(&dist(n2.x, n2.y, some_point_x, some_point_y))
+            linalg_helpers::dist(n1.x, n1.y, some_point_x, some_point_y)
+                .partial_cmp(&linalg_helpers::dist(n2.x, n2.y, some_point_x, some_point_y))
                 .unwrap()
         })
         .unwrap()
@@ -112,11 +105,11 @@ pub fn thick_surface_to_lines(ts: &ThickSurface) -> Vec<(f64, f64, f64, f64)> {
 }
 
 pub fn distance_between_points(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
-    norm(x1 - x2, y1 - y2)
+    linalg_helpers::norm(x1 - x2, y1 - y2)
 }
 
 pub fn distance_between_nodes(n1: &Node, n2: &Node) -> f64 {
-    norm(n1.x - n2.x, n1.y - n2.y)
+    linalg_helpers::norm(n1.x - n2.x, n1.y - n2.y)
 }
 
 pub fn available_node_id(g: &Graph) -> usize {

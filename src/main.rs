@@ -4,7 +4,7 @@ mod renderer;
 mod simulated_annealing;
 mod stitcher;
 mod types;
-mod vector_2d_helpers;
+mod linalg_helpers;
 
 extern crate float_cmp;
 extern crate glutin_window;
@@ -80,5 +80,5 @@ fn playin_main() {
 
 fn main() {
     playin_main()
-    // real_main()
+    //real_main()
 }

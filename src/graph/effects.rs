@@ -4,7 +4,7 @@ use rand::Rng;
 
 use stitcher::Stitching;
 use graph::types::*;
-use vector_2d_helpers::{bisecting_vector, lines_intersection, norm};
+use linalg_helpers::{bisecting_vector, lines_intersection, norm};
 use vec1::Vec1;
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {

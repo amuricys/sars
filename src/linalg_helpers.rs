@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 pub fn norm(x: f64, y: f64) -> f64 {
     (x * x + y * y).sqrt()
 }
@@ -8,6 +10,18 @@ pub fn dist(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
 
 pub fn normed_vector(x: f64, y: f64) -> (f64, f64) {
     (x * (1.0 / norm(x, y)), y * (1.0 / norm(x, y)))
+}
+
+
+pub fn circular_points(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Vec<(f64, f64)> {
+    let mut circular_coords = Vec::new();
+    for i in 0..num_points {
+        circular_coords.push((
+            center_x + (i as f64 * (2.0 * PI) / num_points as f64).cos() * radius,
+            center_y + (i as f64 * (2.0 * PI) / num_points as f64).sin() * radius,
+        ))
+    }
+    circular_coords
 }
 
 pub fn bisecting_vector(middle_x: f64, middle_y: f64, clkwise_x: f64, clkwise_y: f64, ctrclkwise_x: f64, ctrclkwise_y: f64) -> (f64, f64) {

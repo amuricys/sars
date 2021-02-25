@@ -1,11 +1,12 @@
 use glutin_window::GlutinWindow as Window;
 use renderer::{lines_from_thick_surface, junk};
 use renderer::types::{Renderer, Line, Color};
-use renderer::consts::{BLUE, RED};
+use renderer::consts;
 use piston::{Events, EventSettings, RenderEvent, MouseCursorEvent, Button, PressEvent, Event};
 use graph::{cyclic_graph_from_coords, closest_node_to_some_point, distance_between_points};
 use stitcher;
 use graph::types::{ThickSurface, OUTER, INNER};
+use linalg_helpers;
 
 use stitcher::Stitching;
 
@@ -34,11 +35,29 @@ enum State{
     SurfaceStitchingB(ThickSurface, Stitching, (usize, usize))
 }
 
-fn state_to_lines(s: &State) -> Vec<Line> {
+fn cyclical_lines_from_points(points: &Vec<(f64, f64)>, color: Color) -> Vec<Line> {
+    let mut ret = Vec::new();
+    if points.len() > 1 {
+        for i in 0..points.len() {
+            ret.push(Line{
+                points: (points[i].0, points[i].1, points[(i+1) % points.len()].0, points[(i+1) % points.len()].1),
+                color: color
+            });
+        }
+    }
+    ret
+}
+
+fn lines_around_point(x: f64, y: f64, color: Color) -> Vec<Line> {
+    let circle = linalg_helpers::circular_points(x, y, 0.01, 8);
+    cyclical_lines_from_points(&circle, color)
+}
+
+fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
     match s {
         State::Draw(outer_points, inner_points) => {
-            let mut all_lines = mk_lines(outer_points, RED);
-            all_lines.extend(mk_lines(inner_points, BLUE).iter());
+            let mut all_lines = mk_lines(outer_points, consts::RED);
+            all_lines.extend(mk_lines(inner_points, consts::BLUE).iter());
             all_lines
         }
         State::SurfaceStitched(ts, s) => {
@@ -48,10 +67,36 @@ fn state_to_lines(s: &State) -> Vec<Line> {
             lines_from_thick_surface(ts, &stitcher::Stitching::new())
         }
         State::SurfaceStitchingA(ts, s) => {
-            lines_from_thick_surface(ts, s)
+            let mut all_lines = lines_from_thick_surface(ts, s);
+            let outer_n = closest_node_to_some_point(&ts.layers[OUTER], last_mouse_pos.0, last_mouse_pos.1);
+            let inner_n = closest_node_to_some_point(&ts.layers[INNER], last_mouse_pos.0, last_mouse_pos.1);
+            let (highlighted_x, highlighted_y) =
+                if distance_between_points(last_mouse_pos.0, last_mouse_pos.1, outer_n.x, outer_n.y) <
+                    distance_between_points(last_mouse_pos.0, last_mouse_pos.1, inner_n.x, inner_n.y) {
+                    outer_n.pos()
+                } else {
+                    inner_n.pos()
+                };
+            all_lines.extend(lines_around_point(highlighted_x, highlighted_y, consts::WHITE));
+            all_lines
         }
-        State::SurfaceStitchingB(ts, s, _) => {
-            lines_from_thick_surface(ts, s)
+        State::SurfaceStitchingB(ts, s, (last_node_id, last_layer_id)) => {
+            let mut all_lines = lines_from_thick_surface(ts, s);
+            let outer_n = closest_node_to_some_point(&ts.layers[OUTER], last_mouse_pos.0, last_mouse_pos.1);
+            let inner_n = closest_node_to_some_point(&ts.layers[INNER], last_mouse_pos.0, last_mouse_pos.1);
+            let (highlighted_x, highlighted_y) =
+                if distance_between_points(last_mouse_pos.0, last_mouse_pos.1, outer_n.x, outer_n.y) <
+                    distance_between_points(last_mouse_pos.0, last_mouse_pos.1, inner_n.x, inner_n.y) {
+                    outer_n.pos()
+                } else {
+                    inner_n.pos()
+                };
+            let mut extra_lines = lines_around_point(highlighted_x, highlighted_y, consts::WHITE);
+            let (last_x, last_y) = ts.layers[*last_layer_id].nodes[*last_node_id].pos();
+            extra_lines.extend(&lines_around_point(last_x, last_y, consts::TURQUOISE));
+            extra_lines.extend(vec![Line{points: (last_x, last_y, highlighted_x, highlighted_y), color: consts::TURQUOISE}]);
+            all_lines.extend(&extra_lines);
+            all_lines
         }
         _ => Vec::new()
     }
@@ -103,14 +148,13 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
                 Some(Button::Mouse(piston::MouseButton::Left)) => {
                     let outer_n = closest_node_to_some_point(&ts.layers[OUTER], last_mouse_pos.0, last_mouse_pos.1);
                     let inner_n = closest_node_to_some_point(&ts.layers[INNER], last_mouse_pos.0, last_mouse_pos.1);
-                    let thing = if distance_between_points(last_mouse_pos.0, last_mouse_pos.1, outer_n.x, outer_n.y) <
+                    let last_ref = if distance_between_points(last_mouse_pos.0, last_mouse_pos.1, outer_n.x, outer_n.y) <
                         distance_between_points(last_mouse_pos.0, last_mouse_pos.1, inner_n.x, inner_n.y) {
                         (outer_n.id, OUTER)
                     } else {
                         (inner_n.id, INNER)
                     };
-                    println!("SurfaceStitchingA: Found a click at {:?}. thing: {:?}", last_mouse_pos, thing);
-                    State::SurfaceStitchingB(ts.clone(), stitching.clone(), thing)
+                    State::SurfaceStitchingB(ts.clone(), stitching.clone(), last_ref)
                 }
                 _ => { s.clone() }
             }
@@ -133,8 +177,6 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
                         if *last_layer_id == INNER { ts.layers[*last_layer_id].nodes[*last_node_id].y } else { next_node.y },
                     );
                     stitch.put(inn, out);
-                    println!("stitch size: {}", stitch.len());
-                    println!("SurfaceStitchingB: Found a click at {:?}", last_mouse_pos);
                     State::SurfaceStitchingA(ts.clone(), stitch)
                 }
                 _ => { s.clone() }
@@ -158,7 +200,7 @@ pub fn draw_mode_rendering(
     let mut events = Events::new(EventSettings::new());
     let mut state = State::Draw(Vec::new(), Vec::new());
     while let Some(e) = events.next(window) {
-        let lines = state_to_lines(&state);
+        let lines = state_to_lines(&state, last_mouse_pos);
         if let Some(args) = e.render_args() {
             renderer.render(&args, &lines);
         }
