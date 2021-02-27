@@ -1,7 +1,7 @@
 use graph::{distance_between_nodes, distance_between_points};
 
-use std::collections::HashMap;
 use graph::types::{Node, ThickSurface, INNER, OUTER};
+use std::collections::HashMap;
 use vec1::Vec1;
 
 #[derive(Clone, Debug)]
@@ -27,10 +27,11 @@ impl ListMap {
         match self {
             ListMap::LMap(m) => match m.get_mut(&key) {
                 Some(v) => {
-                    if !v.iter().any(|(x, _, _)| *x == val.0) { // No duplicates in Stitching correspondences
+                    if !v.iter().any(|(x, _, _)| *x == val.0) {
+                        // No duplicates in Stitching correspondences
                         v.push(val)
                     }
-                },
+                }
                 None => {
                     m.insert(key, Vec1::new(val));
                 }
@@ -40,7 +41,7 @@ impl ListMap {
 
     pub fn len(&self) -> usize {
         match self {
-            ListMap::LMap(m) => m.len()
+            ListMap::LMap(m) => m.len(),
         }
     }
 }
@@ -87,12 +88,10 @@ impl Stitching {
 
     pub fn get(&self, layer_id: usize, n: Node) -> Vec1<usize> {
         match self {
-            Stitching::Stitch(layers) => {
-                match Vec1::try_from_vec(layers[layer_id].get(n.id).iter().map(|(id, _, _)| *id).collect::<Vec<usize>>()) {
-                    Ok(s) => s,
-                    Err(_)=> panic!("VA SE FUDER")
-                }
-            }
+            Stitching::Stitch(layers) => match Vec1::try_from_vec(layers[layer_id].get(n.id).iter().map(|(id, _, _)| *id).collect::<Vec<usize>>()) {
+                Ok(s) => s,
+                Err(_) => panic!("VA SE FUDER"),
+            },
         }
     }
 
@@ -118,7 +117,9 @@ impl Stitching {
             Stitching::Stitch(layers) => {
                 fn corrs_amt(v: &ListMap) -> usize {
                     let mut amt = 0;
-                    for (_, c) in v { amt = amt + c.len(); }
+                    for (_, c) in v {
+                        amt = amt + c.len();
+                    }
                     amt
                 }
                 let (outer_amt, inner_amt) = (corrs_amt(&layers[OUTER]), corrs_amt(&layers[INNER]));
@@ -149,7 +150,11 @@ fn greedy(ts: &ThickSurface) -> Stitching {
         ts.layers[i]
             .nodes
             .iter()
-            .min_by(|n1, n2| distance_between_nodes(*n1, out_n).partial_cmp(&distance_between_nodes(*n2, out_n)).unwrap())
+            .min_by(|n1, n2| {
+                distance_between_nodes(*n1, out_n)
+                    .partial_cmp(&distance_between_nodes(*n2, out_n))
+                    .unwrap()
+            })
             .unwrap(),
     );
     while out_c <= ts.layers[o].nodes.len() && inn_c <= ts.layers[i].nodes.len() {

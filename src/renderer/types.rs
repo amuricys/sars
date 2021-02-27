@@ -1,6 +1,6 @@
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::input::{MouseCursorEvent, RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
-use renderer::junk::{from_minus1_1_to_window};
+use renderer::junk::from_minus1_1_to_window;
 pub type Color = [f32; 4];
 
 pub struct Renderer {
@@ -12,8 +12,10 @@ pub struct Renderer {
 impl Renderer {
     /* This is because we need to create a window and do some backend setup before creating the GlGraphics object.
 
-       GitHub issue: https://github.com/PistonDevelopers/opengl_graphics/issues/103 */
-    pub fn gl_ver() -> OpenGL { OpenGL::V3_2 }
+    GitHub issue: https://github.com/PistonDevelopers/opengl_graphics/issues/103 */
+    pub fn gl_ver() -> OpenGL {
+        OpenGL::V3_2
+    }
 
     pub fn new() -> Renderer {
         Renderer {

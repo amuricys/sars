@@ -1,8 +1,6 @@
 pub mod effects;
 pub mod types;
 
-
-
 use graph::types::*;
 use linalg_helpers;
 

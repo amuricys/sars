@@ -154,6 +154,6 @@ pub struct ThickSurface {
 
 impl ThickSurface {
     pub(crate) fn new(outer: Graph, inner: Graph) -> ThickSurface {
-        ThickSurface {layers: vec! [outer, inner]}
+        ThickSurface { layers: vec![outer, inner] }
     }
 }

@@ -4,8 +4,8 @@ use simulated_annealing;
 use std::fs::File;
 use std::io::Write;
 
-use types::Params;
 use graph::types::{ThickSurface, INNER, OUTER};
+use types::Params;
 
 type RecorderFn = for<'r, 's> fn(&'r ThickSurface, &'s Params) -> f64;
 

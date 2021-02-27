@@ -2,9 +2,9 @@ use graph::{distance_between_nodes, distance_between_points};
 
 use rand::Rng;
 
-use stitcher::Stitching;
 use graph::types::*;
 use linalg_helpers::{bisecting_vector, lines_intersection, norm};
+use stitcher::Stitching;
 use vec1::Vec1;
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {
@@ -157,7 +157,10 @@ fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_chang
     /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
     let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, prev_ref_x, prev_ref_y, next_ref_x, next_ref_y);
 
-    (-dir_x * norm(change.delta_x, change.delta_y), -dir_y * norm(change.delta_x, change.delta_y))
+    (
+        -dir_x * norm(change.delta_x, change.delta_y),
+        -dir_y * norm(change.delta_x, change.delta_y),
+    )
 }
 
 fn direction_from(org: (f64, f64), dst: (f64, f64)) -> (f64, f64) {

@@ -1,7 +1,7 @@
-pub mod draw_mode;
 mod consts;
-mod types;
+pub mod draw_mode;
 mod junk;
+mod types;
 
 use glutin_window::GlutinWindow as Window;
 use piston::event_loop::{EventSettings, Events};
@@ -14,10 +14,9 @@ use piston::{Button, PressEvent};
 use recorders;
 use simulated_annealing;
 
+use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use stitcher;
 use types::Params;
-use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-
 
 pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v): &stitcher::Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();
@@ -191,9 +190,15 @@ pub fn setup_optimization_and_loop<F>(
                         delta_x: cursor_pos_x - closest_node.x,
                         delta_y: cursor_pos_y - closest_node.y,
                     };
-                    let surrounding_imaginary_changes = graph::effects::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
-                    let inner_imaginary_changes =
-                        graph::effects::changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, stitching.clone());
+                    let surrounding_imaginary_changes =
+                        graph::effects::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
+                    let inner_imaginary_changes = graph::effects::changes_from_other_graph(
+                        &ts.layers[INNER],
+                        &ts.layers[OUTER],
+                        &surrounding_imaginary_changes,
+                        0.0,
+                        stitching.clone(),
+                    );
                     lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
                 }
                 None => imaginary_lines,

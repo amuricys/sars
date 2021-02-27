@@ -12,7 +12,6 @@ pub fn normed_vector(x: f64, y: f64) -> (f64, f64) {
     (x * (1.0 / norm(x, y)), y * (1.0 / norm(x, y)))
 }
 
-
 pub fn circular_points(center_x: f64, center_y: f64, radius: f64, num_points: usize) -> Vec<(f64, f64)> {
     let mut circular_coords = Vec::new();
     for i in 0..num_points {

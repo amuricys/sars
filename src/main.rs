@@ -1,10 +1,10 @@
 mod graph;
+mod linalg_helpers;
 mod recorders;
 mod renderer;
 mod simulated_annealing;
 mod stitcher;
 mod types;
-mod linalg_helpers;
 
 extern crate float_cmp;
 extern crate glutin_window;
@@ -15,8 +15,8 @@ extern crate rand;
 extern crate toml;
 extern crate vec1;
 
-use std::f64::consts::PI;
 use renderer::draw_mode::draw_mode_rendering;
+use std::f64::consts::PI;
 
 fn toml_table_to_params(table: toml::Value) -> types::Params {
     match table {
