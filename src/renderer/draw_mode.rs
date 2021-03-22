@@ -2,7 +2,7 @@ use glutin_window::GlutinWindow as Window;
 use graph::types::{Graph, Node, NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use graph::{
     closest_node_to_some_point, cyclic_graph_from_coords, distance_between_points,
-    effects::{changes_from_other_graph, smooth_change_out},
+    effects::{changer_of_choice, smooth_change_out},
 };
 use linalg_helpers;
 use piston::{Button, Event, EventSettings, Events, MouseCursorEvent, PressEvent, RenderEvent};
@@ -11,7 +11,7 @@ use renderer::types::{Color, Line, Renderer};
 use renderer::{junk, lines_from_thick_surface};
 use stitcher;
 
-use stitcher::Stitching;
+use stitcher::types::Stitching;
 
 fn mk_lines(points: &Vec<(f64, f64)>, color: Color) -> Vec<Line> {
     let mut lines = Vec::new();
@@ -122,7 +122,7 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
             all_lines
         }
         State::SurfaceStitched(ts, s) => lines_from_thick_surface(ts, s),
-        State::SurfaceUnstitched(ts) => lines_from_thick_surface(ts, &stitcher::Stitching::new()),
+        State::SurfaceUnstitched(ts) => lines_from_thick_surface(ts, &stitcher::types::Stitching::new()),
         State::SurfaceStitchingA(ts, s) => {
             let mut all_lines = lines_from_thick_surface(ts, s);
             let outer_n = closest_node_to_some_point(&ts.layers[OUTER], last_mouse_pos.0, last_mouse_pos.1);
@@ -167,8 +167,7 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
             };
             let mut all_lines = lines_from_thick_surface(ts, s);
             let surrounding_imaginary_changes = smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(3));
-            let inner_imaginary_changes =
-                changes_from_other_graph(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, s.clone());
+            let inner_imaginary_changes = changer_of_choice(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, s);
             all_lines.extend(lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes]));
             all_lines
         }
@@ -210,7 +209,7 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
                 State::SurfaceStitched(ts.clone(), stitch)
             }
             Some(Button::Mouse(piston::MouseButton::Left)) => {
-                let stitch = stitcher::Stitching::new();
+                let stitch = stitcher::types::Stitching::new();
                 State::SurfaceStitchingA(ts.clone(), stitch)
             }
             _ => s.clone(),
@@ -293,7 +292,7 @@ pub fn draw_mode_rendering(window: &mut Window, renderer: &mut Renderer) {
         }
 
         last_mouse_pos = match e.mouse_cursor_args() {
-            Some([x, y]) => junk::from_window_to_minus1_1(x, y, 800.0, 800.0),
+            Some([x, y]) => junk::from_window_to_minus1_1(x, y, consts::WINDOW_SIZE.0, consts::WINDOW_SIZE.1),
             None => last_mouse_pos,
         };
 

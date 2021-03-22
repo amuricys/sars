@@ -16,6 +16,7 @@ extern crate toml;
 extern crate vec1;
 
 use renderer::draw_mode::draw_mode_rendering;
+use std::env;
 use std::f64::consts::PI;
 
 fn toml_table_to_params(table: toml::Value) -> types::Params {
@@ -79,6 +80,10 @@ fn playin_main() {
 }
 
 fn main() {
-    playin_main()
-    //real_main()
+    let args: Vec<String> = env::args().collect();
+    if args.len() >= 2 && args[1] == "debug" {
+        playin_main()
+    } else {
+        real_main()
+    }
 }

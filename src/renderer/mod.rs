@@ -15,10 +15,11 @@ use recorders;
 use simulated_annealing;
 
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-use stitcher;
+use stitcher::stitch;
+use stitcher::types::Stitching;
 use types::Params;
 
-pub fn lines_from_thick_surface(ts: &ThickSurface, stitcher::Stitching::Stitch(v): &stitcher::Stitching) -> Vec<types::Line> {
+pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
@@ -158,10 +159,10 @@ pub fn setup_optimization_and_loop<F>(
     how_to_make_lines: F,
     params: &Params,
 ) where
-    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &stitcher::Stitching) -> Vec<types::Line>,
+    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &Stitching) -> Vec<types::Line>,
 {
     let mut state = initial_state(params.initial_temperature);
-    let mut stitching = stitcher::stitch(ts);
+    let mut stitching = stitch(ts);
     let mut events = Events::new(EventSettings::new());
     let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
     let mut changeset = vec![];
@@ -181,7 +182,7 @@ pub fn setup_optimization_and_loop<F>(
         } else {
             match e.mouse_cursor_args() {
                 Some([x, y]) => {
-                    let (cursor_pos_x, cursor_pos_y) = junk::from_window_to_minus1_1(x, y, 800.0, 800.0);
+                    let (cursor_pos_x, cursor_pos_y) = junk::from_window_to_minus1_1(x, y, consts::WINDOW_SIZE.0, consts::WINDOW_SIZE.1);
                     let closest_node = graph::closest_node_to_some_point(&ts.layers[OUTER], cursor_pos_x, cursor_pos_y);
                     let imaginary_change = NodeChange {
                         id: closest_node.id,
@@ -192,13 +193,8 @@ pub fn setup_optimization_and_loop<F>(
                     };
                     let surrounding_imaginary_changes =
                         graph::effects::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
-                    let inner_imaginary_changes = graph::effects::changes_from_other_graph(
-                        &ts.layers[INNER],
-                        &ts.layers[OUTER],
-                        &surrounding_imaginary_changes,
-                        0.0,
-                        stitching.clone(),
-                    );
+                    let inner_imaginary_changes =
+                        graph::effects::changer_of_choice(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, &stitching);
                     lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
                 }
                 None => imaginary_lines,
@@ -223,16 +219,16 @@ pub fn setup_optimization_and_loop<F>(
                     proto_change,
                     params.initial_gray_matter_area,
                     state.temperature,
-                    stitching.clone(),
+                    &stitching,
                     params,
                     rng,
                 )
             }
             StepType::OneAtATime => {
-                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, stitching.clone(), params, rng)
+                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, &stitching, params, rng)
             }
             StepType::Automatic => {
-                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, stitching.clone(), params, rng)
+                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, &stitching, params, rng)
             }
             StepType::Reset => {
                 *ts = {
@@ -243,7 +239,7 @@ pub fn setup_optimization_and_loop<F>(
             StepType::NoStep => {}
         }
         if state.should_stich {
-            stitching = stitcher::stitch(ts);
+            stitching = stitch(ts);
         }
         match &mut output_file {
             Some(f) => recorders::record(ts, params, f),
@@ -254,7 +250,7 @@ pub fn setup_optimization_and_loop<F>(
 
 pub fn setup_renderer() -> (types::Renderer, Window) {
     // Create an Glutin window.
-    let window: Window = WindowSettings::new("spinning-square", [800, 800])
+    let window: Window = WindowSettings::new("spinning-square", consts::WINDOW_SIZE)
         .graphics_api(types::Renderer::gl_ver())
         .exit_on_esc(true)
         .build()

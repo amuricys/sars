@@ -1,9 +1,9 @@
 use graph;
-use graph::effects::{add_node_, apply_changes, changes_from_other_graph, delete_node_, random_change, revert_changes, smooth_change_out};
+use graph::effects::{add_node_, apply_changes, changer_of_choice, delete_node_, random_change, revert_changes, smooth_change_out};
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use linalg_helpers::lines_intersection;
 use rand::Rng;
-use stitcher::Stitching;
+use stitcher::types::Stitching;
 use types::Params;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
@@ -15,10 +15,10 @@ fn manual_neighbor_changes(
     layer_across: usize,
     how_smooth: usize,
     compression_factor: f64,
-    stitch: Stitching,
+    stitch: &Stitching,
 ) -> (NodeChangeMap, NodeChangeMap) {
     let smoothed_changes = smooth_change_out(&ts.layers[layer_to_push], node_change.clone(), Smooth::Count(how_smooth));
-    let smoothed_inner_changes = changes_from_other_graph(
+    let smoothed_inner_changes = changer_of_choice(
         &ts.layers[layer_across],
         &ts.layers[layer_to_push],
         &smoothed_changes,
@@ -34,13 +34,13 @@ fn neighbor_changes(
     layer_across: usize,
     how_smooth: usize,
     compression_factor: f64,
-    stitch: Stitching,
+    stitch: &Stitching,
     low_high: (f64, f64),
     rng: &mut rand::rngs::ThreadRng,
 ) -> (NodeChangeMap, NodeChangeMap) {
     let outer_change = random_change(&ts.layers[layer_to_push], low_high, rng);
     let smoothed_changes = smooth_change_out(&ts.layers[layer_to_push], outer_change.clone(), Smooth::Count(how_smooth));
-    let smoothed_inner_changes = changes_from_other_graph(
+    let smoothed_inner_changes = changer_of_choice(
         &ts.layers[layer_across],
         &ts.layers[layer_to_push],
         &smoothed_changes,
@@ -134,7 +134,7 @@ pub fn step(
     ts: &mut ThickSurface,
     initial_gray_matter_area: f64,
     temperature: f64,
-    stitch: Stitching,
+    stitch: &Stitching,
     params: &Params,
     rng: &mut rand::rngs::ThreadRng,
 ) -> Vec<NodeChangeMap> {
@@ -171,7 +171,7 @@ pub fn step_with_manual_change(
     node_change: NodeChange,
     initial_gray_matter_area: f64,
     temperature: f64,
-    stitch: Stitching,
+    stitch: &Stitching,
     params: &Params,
     rng: &mut rand::rngs::ThreadRng,
 ) -> Vec<NodeChangeMap> {

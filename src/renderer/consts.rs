@@ -10,4 +10,4 @@ pub const GREEN: Color = [0.2, 1.0, 0.2, 1.0];
 pub const RED: Color = [1.0, 0.0, 0.2, 1.0];
 pub const _COLORS: [Color; 6] = [BLACK, WHITE, PURPLE, PINK, BLUE, GREEN];
 
-pub const WINDOW_SIZE: (f64, f64) = (800.0, 800.0);
+pub const WINDOW_SIZE: (f64, f64) = (1100.0, 1100.0);

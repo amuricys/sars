@@ -1,6 +1,6 @@
 "initial_thickness" = 0.025
-"initial_radius" = 0.8
-"initial_num_points" = 20
+"initial_radius" = 0.95
+"initial_num_points" = 200
 "initial_temperature" = 0.0
 "compression_factor" = 1.1
 "softness_factor" = 1.0

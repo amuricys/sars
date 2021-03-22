@@ -4,7 +4,7 @@ use rand::Rng;
 
 use graph::types::*;
 use linalg_helpers::{bisecting_vector, lines_intersection, norm};
-use stitcher::Stitching;
+use stitcher::types::Stitching;
 use vec1::Vec1;
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {
@@ -244,40 +244,128 @@ fn for_a_node_affected_make_the(index: usize, graph: &Graph, other_graph: &Graph
     }
 }
 
-fn for_ALL_nodes_affected_make_the(_index: Vec1<usize>, _graph: &Graph, _other_graph: &Graph, _other_change: &NodeChange) -> NodeChange {
-    panic!("Tomar no cu")
+fn weigh_change(inner_node_affected: usize, inner_graph: &Graph, outer_graph: &Graph, s: &Stitching, outer_change: &NodeChange) -> f64 {
+    let outer_others = s.get(INNER, &inner_graph.nodes[inner_node_affected]);
+    let (inn_x, inn_y) = inner_graph.nodes[inner_node_affected].pos();
+    let total_distance = outer_others.iter().fold(0.0, |acc, x| {
+        let (out_x, out_y) = outer_graph.nodes[*x].pos();
+        acc + distance_between_points(inn_x, inn_y, out_x, out_y)
+    });
+    let distance_to_changed = distance_between_points(inn_x, inn_y, outer_change.cur_x, outer_change.cur_y);
+    distance_to_changed / total_distance
 }
 
-pub fn changes_from_other_graph(
+fn for_ALL_nodes_affected_make_the(
+    inner_nodes_affected: &Vec1<usize>,
+    inner_graph: &Graph,
+    outer_graph: &Graph,
+    outer_change: &NodeChange,
+    s: &Stitching,
+) -> NodeChangeMap {
+    let mut ret = NodeChangeMap::new();
+    for i in inner_nodes_affected {
+        let weight = weigh_change(*i, inner_graph, outer_graph, s, outer_change);
+        println!("{}", weight);
+        let change_individual = for_a_node_affected_make_the(*i, inner_graph, outer_graph, outer_change);
+        ret.insert(
+            *i,
+            NodeChange {
+                delta_x: change_individual.delta_x * weight,
+                delta_y: change_individual.delta_y * weight,
+                ..change_individual
+            },
+        );
+    }
+    ret
+}
+
+fn for_ALL_nodes_affected_make_the2(
+    inner_nodes_affected: &Vec1<usize>,
+    inner_graph: &Graph,
+    outer_graph: &Graph,
+    outer_change: &NodeChange,
+    s: &Stitching,
+) -> NodeChangeMap {
+    let mut ret = NodeChangeMap::new();
+    for i in inner_nodes_affected {
+        let weight = weigh_change(*i, inner_graph, outer_graph, s, outer_change);
+        let (cur_x, cur_y) = inner_graph.nodes[*i].pos();
+        ret.insert(
+            *i,
+            NodeChange {
+                id: *i,
+                cur_x,
+                cur_y,
+                delta_x: outer_change.delta_x * weight,
+                delta_y: outer_change.delta_y * weight,
+            },
+        );
+    }
+    ret
+}
+
+fn changes_from_other_graph(
     this_graph: &Graph,
     other_graph: &Graph,
     other_graph_changes: &NodeChangeMap,
     _compression_factor: f64,
-    s: Stitching,
+    s: &Stitching,
 ) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
     for (_, c) in other_graph_changes {
-        let closest_node_affected = s.get_closest_correspondent(OUTER, other_graph.nodes[c.id].clone());
+        let closest_node_affected = s.get_closest_correspondent(OUTER, &other_graph.nodes[c.id]);
         let inner_change = for_a_node_affected_make_the(closest_node_affected, this_graph, other_graph, c);
         ret.insert(inner_change.id, inner_change);
     }
     ret
 }
 
-pub fn changes_from_other_graph2(
-    this_graph: &Graph,
-    other_graph: &Graph,
+fn changes_from_other_graph2(
+    inner_graph: &Graph,
+    outer_graph: &Graph,
     other_graph_changes: &NodeChangeMap,
     _compression_factor: f64,
-    s: Stitching,
+    s: &Stitching,
 ) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
     for (_, c) in other_graph_changes {
-        let closest_node_affected = s.get(OUTER, other_graph.nodes[c.id].clone());
-        let inner_change = for_ALL_nodes_affected_make_the(closest_node_affected, this_graph, other_graph, c);
-        ret.insert(inner_change.id, inner_change);
+        let inner_nodes = s.get(OUTER, &outer_graph.nodes[c.id]);
+        let inner_changes = for_ALL_nodes_affected_make_the(&inner_nodes, inner_graph, outer_graph, c, s);
+
+        for (x, y) in &inner_changes {
+            ret.insert(*x, y.clone());
+        }
     }
     ret
+}
+
+fn changes_from_other_graph3(
+    inner_graph: &Graph,
+    outer_graph: &Graph,
+    other_graph_changes: &NodeChangeMap,
+    _compression_factor: f64,
+    s: &Stitching,
+) -> NodeChangeMap {
+    let mut ret = NodeChangeMap::new();
+    for (_, c) in other_graph_changes {
+        let inner_nodes = s.get(OUTER, &outer_graph.nodes[c.id]);
+        let inner_changes = for_ALL_nodes_affected_make_the2(&inner_nodes, inner_graph, outer_graph, c, s);
+
+        for (x, y) in &inner_changes {
+            ret.insert(*x, y.clone());
+        }
+    }
+    ret
+}
+
+pub fn changer_of_choice(
+    inner_graph: &Graph,
+    outer_graph: &Graph,
+    other_graph_changes: &NodeChangeMap,
+    compression_factor: f64,
+    s: &Stitching,
+) -> NodeChangeMap {
+    changes_from_other_graph(inner_graph, outer_graph, other_graph_changes, compression_factor, s)
 }
 
 #[cfg(test)]
