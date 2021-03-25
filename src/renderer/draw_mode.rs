@@ -175,6 +175,8 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
     }
 }
 
+const STRAT: stitcher::types::Strategy = stitcher::types::Strategy::Dijkstra;
+
 fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
     match s {
         State::Draw(o, i) => match e.press_args() {
@@ -198,14 +200,14 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
                 let outer = cyclic_graph_from_coords(&o);
                 let inner = cyclic_graph_from_coords(&i);
                 let ts = ThickSurface::new(outer, inner);
-                let s = stitcher::stitch(&ts);
+                let s = stitcher::stitch_choice(&ts, STRAT);
                 State::SurfacePushing(ts, s)
             }
             _ => s.clone(),
         },
         State::SurfaceUnstitched(ts) => match e.press_args() {
             Some(Button::Keyboard(piston::Key::S)) => {
-                let stitch = stitcher::stitch(&ts);
+                let stitch = stitcher::stitch_choice(&ts, STRAT);
                 State::SurfaceStitched(ts.clone(), stitch)
             }
             Some(Button::Mouse(piston::MouseButton::Left)) => {
@@ -217,7 +219,7 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
 
         State::SurfaceStitchingA(ts, stitching) => match e.press_args() {
             Some(Button::Keyboard(piston::Key::S)) => {
-                let stitch = stitcher::stitch(&ts);
+                let stitch = stitcher::stitch_choice(&ts, STRAT);
                 State::SurfaceStitched(ts.clone(), stitch)
             }
             Some(Button::Mouse(piston::MouseButton::Left)) => {

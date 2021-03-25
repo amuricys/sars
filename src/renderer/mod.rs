@@ -15,8 +15,8 @@ use recorders;
 use simulated_annealing;
 
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-use stitcher::stitch;
-use stitcher::types::Stitching;
+use stitcher::stitch_choice;
+use stitcher::types::{Stitching, Strategy};
 use types::Params;
 
 pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<types::Line> {
@@ -62,6 +62,7 @@ struct State {
     pub temperature: f64,
     pub should_stich: bool,
     pub hyper_debug: bool,
+    pub stitch_strat: Strategy,
 }
 
 fn next_state(event: Option<Button>, s: State) -> State {
@@ -94,6 +95,13 @@ fn next_state(event: Option<Button>, s: State) -> State {
             hyper_debug: !s.hyper_debug,
             ..s
         },
+        Some(piston::Button::Keyboard(piston::Key::F)) => State {
+            stitch_strat: match s.stitch_strat {
+                Strategy::Greedy => Strategy::Dijkstra,
+                _ => Strategy::Greedy,
+            },
+            ..s
+        },
         _ => State {
             step_type: if !s.should_step { StepType::NoStep } else { s.step_type },
             ..s
@@ -109,6 +117,7 @@ fn initial_state(initial_temperature: f64) -> State {
         temperature: initial_temperature,
         should_stich: true,
         hyper_debug: false,
+        stitch_strat: Strategy::Greedy,
     }
 }
 
@@ -162,7 +171,7 @@ pub fn setup_optimization_and_loop<F>(
     F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &Stitching) -> Vec<types::Line>,
 {
     let mut state = initial_state(params.initial_temperature);
-    let mut stitching = stitch(ts);
+    let mut stitching = stitch_choice(ts, state.stitch_strat);
     let mut events = Events::new(EventSettings::new());
     let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
     let mut changeset = vec![];
@@ -239,7 +248,7 @@ pub fn setup_optimization_and_loop<F>(
             StepType::NoStep => {}
         }
         if state.should_stich {
-            stitching = stitch(ts);
+            stitching = stitch_choice(ts, state.stitch_strat);
         }
         match &mut output_file {
             Some(f) => recorders::record(ts, params, f),

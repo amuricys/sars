@@ -132,3 +132,9 @@ impl Stitching {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
+pub enum Strategy {
+    Greedy,
+    Dijkstra,
+}

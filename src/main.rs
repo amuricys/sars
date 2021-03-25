@@ -10,6 +10,7 @@ extern crate float_cmp;
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
+extern crate pathfinding;
 extern crate piston;
 extern crate rand;
 extern crate toml;
@@ -18,6 +19,7 @@ extern crate vec1;
 use renderer::draw_mode::draw_mode_rendering;
 use std::env;
 use std::f64::consts::PI;
+use stitcher::stitch_choice;
 
 fn toml_table_to_params(table: toml::Value) -> types::Params {
     match table {
@@ -81,9 +83,11 @@ fn playin_main() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() >= 2 && args[1] == "debug" {
-        playin_main()
-    } else {
+    if args.len() < 2 {
         real_main()
+    } else if args[1] == "debug" {
+        playin_main()
+    } else if args[1] == "smart" {
+        println!("Path hehe: djumba");
     }
 }
