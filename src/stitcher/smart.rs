@@ -71,6 +71,7 @@ impl RowCol {
      distance from outer graph's jth node to inner graph's i+1th node
    )
 */
+
 fn make_matrix(outer: &Graph, inner: &Graph) -> Vec<Vec<(MyFloat, MyFloat)>> {
     let rows_amt = inner.nodes.len();
     let cols_amt = outer.nodes.len();

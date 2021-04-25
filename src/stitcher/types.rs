@@ -138,3 +138,11 @@ pub enum Strategy {
     Greedy,
     Dijkstra,
 }
+impl Strategy {
+    pub(crate) fn other(&self) -> Strategy {
+        match self {
+            Strategy::Greedy => Strategy::Dijkstra,
+            Strategy::Dijkstra => Strategy::Greedy
+        }
+    }
+}

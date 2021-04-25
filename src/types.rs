@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Params {
     pub initial_thickness: f64,
     pub initial_radius: f64,

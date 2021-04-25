@@ -45,29 +45,6 @@ fn name_to_fn(n: &str) -> Option<RecorderFn> {
     }
 }
 
-pub fn create_file_with_header(file_path: &str, recorders: &Vec<String>) -> Option<File> {
-    if !recorders.is_empty() {
-        let mut header = String::new();
-        for r in recorders {
-            header.push_str(",");
-            header.push_str(r);
-        }
-        header.push_str("\n");
-        if header.len() > 0 {
-            header.remove(0);
-        }; // remove leading comma
-
-        return match File::create(file_path) {
-            Ok(mut f) => match f.write_all(header.as_bytes()) {
-                Ok(_) => Some(f),
-                Err(e) => panic!("Couldn't write to file: {:?}", e),
-            },
-            Err(_) => None,
-        };
-    }
-    None
-}
-
 pub fn record(ts: &ThickSurface, p: &Params, f: &mut File) {
     let mut line = String::new();
     for r in &p.recorders {
