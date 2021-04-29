@@ -4,7 +4,7 @@ use graph::{
     closest_node_to_some_point, cyclic_graph_from_coords, distance_between_points,
     effects::{changer_of_choice, smooth_change_out},
 };
-use ::{linalg_helpers, toml_table_to_params};
+use ::{linalg_helpers};
 use piston::{Button, Event, EventSettings, Events, MouseCursorEvent, PressEvent, RenderEvent};
 use renderer::consts;
 use renderer::types::{Color, Line, Renderer};
@@ -43,7 +43,7 @@ impl StateBag {
     fn new(ts: ThickSurface, stitch_strat: Strategy, params: Params) -> StateBag {
         let s = stitcher::stitch_choice(&ts, stitch_strat);
         // TODO: QUE IDEIA AMENTAL DE INITIAL GRAY MATTER AREA É ESSA CARAI
-        let initial_gm = initial_gr
+        //let initial_gm = initial_gray_
         StateBag {
             ts: ts,
             s: s,
@@ -328,7 +328,7 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
             let mut new_ts = new_sb.ts;
             let mut new_rng = new_sb.rng;
             simulated_annealing::step(&mut new_ts, sb.initial_gm, sb.temp, &sb.s, &sb.params, &mut new_rng);
-            State::SurfaceOptimizing(StateBag {ts: new_ts, rng: new_rng, ..sb })
+            State::SurfaceOptimizing(StateBag {ts: new_ts, rng: new_rng, ..sb.clone() })
         }
 
         _ => s.clone(),

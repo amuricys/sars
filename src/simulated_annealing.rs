@@ -59,7 +59,7 @@ pub fn energy(ts: &ThickSurface, initial_gray_matter_area: f64) -> f64 {
     white_matter + (1.0 + gray_matter_stretch).powf(2.0)
 }
 
-fn probability(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64 {
+fn probability_to_accept_neighbor_state(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64 {
     if temperature < 0.0 {
         if energy_neighbor < energy_state {
             1.0
@@ -90,7 +90,7 @@ fn intersection_effects(
         }
         None => {
             let coin_flip = rng.gen_range(0.0, 1.0);
-            if probability(energy_state, energy_neighbor, temperature) < coin_flip {
+            if probability_to_accept_neighbor_state(energy_state, energy_neighbor, temperature) < coin_flip {
                 revert_changes(&mut ts.layers[OUTER], outer_changes);
                 revert_changes(&mut ts.layers[INNER], inner_changes);
             }

@@ -11,7 +11,7 @@ use piston::window::WindowSettings;
 use graph;
 
 use piston::{Button, PressEvent};
-use recorders;
+use file_io::recorders;
 use simulated_annealing;
 
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
@@ -168,7 +168,7 @@ pub fn setup_optimization_and_loop<F>(
     how_to_make_lines: F,
     params: &Params,
 ) where
-    F: Fn(&ThickSurface, &Vec<NodeChangeMap>, &Stitching) -> Vec<types::Line>,
+    F: Fn(&ThickSurface, &Stitching) -> Vec<types::Line>,
 {
     let mut state = initial_state(params.initial_temperature);
     let mut stitching = stitch_choice(ts, state.stitch_strat);
@@ -209,7 +209,7 @@ pub fn setup_optimization_and_loop<F>(
                 None => imaginary_lines,
             }
         };
-        let mut lines = how_to_make_lines(ts, &changeset, &stitching);
+        let mut lines = how_to_make_lines(ts, &stitching);
         lines.append(&mut imaginary_lines.clone()); // I really don't get why there isn't a good immutable append operation
 
         if let Some(args) = e.render_args() {

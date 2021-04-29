@@ -8,7 +8,7 @@ pub fn toml_table_to_params(table: toml::Value) -> types::Params {
         toml::Value::Table(m) => {
             let initial_radius = m.get("initial_radius").unwrap().as_float().unwrap();
             let initial_thickness = m.get("initial_thickness").unwrap().as_float().unwrap();
-            let initial_area = 2.0 * PI * initial_radius - (2.0 * PI * (initial_radius - initial_thickness));
+            let initial_area = PI * (initial_radius.powf(2.0) - (initial_radius - initial_thickness).powf(2.0));
             types::Params {
                 initial_thickness: initial_thickness,
                 initial_radius: initial_radius,

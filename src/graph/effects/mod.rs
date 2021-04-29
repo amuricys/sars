@@ -1,3 +1,5 @@
+mod pusher_1;
+
 use graph::{distance_between_nodes, distance_between_points};
 
 use rand::Rng;
@@ -112,10 +114,7 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition
     ts.layers[layer_to_which_add].nodes[node_addition.n.prev_id].next_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes.insert(
         node_addition.n.id,
-        Node {
-            id: node_addition.n.id,
-            ..node_addition.n
-        },
+        node_addition.n,
     );
 }
 

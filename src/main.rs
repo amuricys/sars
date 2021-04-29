@@ -35,7 +35,7 @@ fn real_main() {
         &mut rng,
         &mut window,
         &mut renderer,
-        |ts, _, s| renderer::lines_from_thick_surface(ts, s),
+        |ts, s| renderer::lines_from_thick_surface(ts, s),
         &params,
     )
 }

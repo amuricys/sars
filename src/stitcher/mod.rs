@@ -14,3 +14,7 @@ pub fn stitch_choice(ts: &ThickSurface, strategy: types::Strategy) -> types::Sti
         types::Strategy::Greedy => greedy::stitch(&ts.layers[OUTER], &ts.layers[INNER]),
     }
 }
+
+pub fn stitch_default (ts: &ThickSurface) -> types::Stitching {
+    stitch_choice(ts, types::Strategy::Dijkstra)
+}
