@@ -15,7 +15,7 @@ use file_io::recorders;
 use simulated_annealing;
 
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-use stitcher::stitch_choice;
+use stitcher::{stitch_choice, stitch_default};
 use stitcher::types::{Stitching, Strategy};
 use types::Params;
 
@@ -30,18 +30,18 @@ pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitch
             });
         }
     }
-    for (k, v) in &v[OUTER] {
-        let outer_x = ts.layers[OUTER].nodes[*k].x;
-        let outer_y = ts.layers[OUTER].nodes[*k].y;
-        for val in v {
-            let inner_x = ts.layers[INNER].nodes[val.0].x;
-            let inner_y = ts.layers[INNER].nodes[val.0].y;
-            lines.push(types::Line {
-                points: (outer_x, outer_y, inner_x, inner_y),
-                color: consts::PURPLE,
-            });
-        }
-    }
+    // for (k, v) in &v[OUTER] {
+    //     let outer_x = ts.layers[OUTER].nodes[*k].x;
+    //     let outer_y = ts.layers[OUTER].nodes[*k].y;
+    //     for val in v {
+    //         let inner_x = ts.layers[INNER].nodes[val.0].x;
+    //         let inner_y = ts.layers[INNER].nodes[val.0].y;
+    //         lines.push(types::Line {
+    //             points: (outer_x, outer_y, inner_x, inner_y),
+    //             color: consts::PURPLE,
+    //         });
+    //     }
+    // }
     lines
 }
 
@@ -171,7 +171,7 @@ pub fn setup_optimization_and_loop<F>(
     F: Fn(&ThickSurface, &Stitching) -> Vec<types::Line>,
 {
     let mut state = initial_state(params.initial_temperature);
-    let mut stitching = stitch_choice(ts, state.stitch_strat);
+    let mut stitching = stitch_default(ts);
     let mut events = Events::new(EventSettings::new());
     let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
     let mut changeset = vec![];
@@ -248,7 +248,7 @@ pub fn setup_optimization_and_loop<F>(
             StepType::NoStep => {}
         }
         if state.should_stich {
-            stitching = stitch_choice(ts, state.stitch_strat);
+            // stitching = stitch_choice(ts, state.stitch_strat);
         }
         match &mut output_file {
             Some(f) => recorders::record(ts, params, f),

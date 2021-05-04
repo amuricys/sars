@@ -47,6 +47,7 @@ fn neighbor_changes(
         compression_factor,
         stitch,
     );
+    println!("{:?}", smoothed_inner_changes);
     (smoothed_changes, smoothed_inner_changes)
 }
 

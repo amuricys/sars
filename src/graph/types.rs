@@ -23,6 +23,7 @@ impl Smooth<usize, f64> {
 }
 
 pub type NodeIndex = usize;
+#[derive(Debug)]
 pub enum NodeChangeMap {
     NCM(HashMap<usize, NodeChange>),
 }

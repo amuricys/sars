@@ -364,7 +364,7 @@ pub fn changer_of_choice(
     compression_factor: f64,
     s: &Stitching,
 ) -> NodeChangeMap {
-    changes_from_other_graph(inner_graph, outer_graph, other_graph_changes, compression_factor, s)
+    pusher_1::push_inners(inner_graph, outer_graph, other_graph_changes, s)
 }
 
 #[cfg(test)]
