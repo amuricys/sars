@@ -47,7 +47,6 @@ fn neighbor_changes(
         compression_factor,
         stitch,
     );
-    println!("{:?}", smoothed_inner_changes);
     (smoothed_changes, smoothed_inner_changes)
 }
 
@@ -105,8 +104,9 @@ fn add_single_node_effects(ts: &mut ThickSurface, layer_to_add: usize, addition_
     for n in &graph_to_which_add.nodes {
         match graph::node_to_add(graph_to_which_add, n, n.next(&graph_to_which_add), addition_threshold) {
             Some(addition) => {
-                println!("added");
-                add_node_(ts, layer_to_add, addition);
+                add_node_(ts, layer_to_add, &addition);
+                println!("addition: {:?}", addition);
+                println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_to_add].nodes[addition.n.prev_id], ts.layers[layer_to_add].nodes[addition.n.next_id]);
                 break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
             }
             None => {}
@@ -120,8 +120,8 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
     for n in &graph_from_which_delete.nodes {
         match graph::node_to_delete(graph_from_which_delete, n, n.next(&graph_from_which_delete), deletion_threshold) {
             Some(deletion) => {
-                println!("deleted");
-                delete_node_(ts, layer_from_which_delete, deletion);
+                delete_node_(ts, layer_from_which_delete, &deletion);
+
                 break; // THE BREAK IS WHAT LETS THIS WORK, GODDAMN
             }
             None => {}

@@ -109,16 +109,20 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: Smooth<usize
     ret
 }
 
-pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition: NodeAddition) {
+pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition: &NodeAddition) {
     ts.layers[layer_to_which_add].nodes[node_addition.n.next_id].prev_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes[node_addition.n.prev_id].next_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes.insert(
         node_addition.n.id,
-        node_addition.n,
+        node_addition.n.clone(),
     );
 }
 
-pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node: Node) {
+pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node: &Node) {
+    println!("deletion: {:?}, len: {}, layer: {}", node, ts.layers[layer_from_which_delete].nodes.len(), layer_from_which_delete);
+    println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_from_which_delete].nodes[node.prev_id], ts.layers[layer_from_which_delete].nodes[node.next_id]);
+
+
     /* 1. Remove node from the graph's circular path */
     let next_id = node.next_id;
     let prev_id = node.prev_id;
@@ -128,10 +132,12 @@ pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node:
     /* 2. Swap last node and deleted node's position */
     let last = ts.layers[layer_from_which_delete].nodes.last().unwrap().clone();
     let deleted_id = node.id;
-    ts.layers[layer_from_which_delete].nodes[last.prev_id].next_id = deleted_id;
-    ts.layers[layer_from_which_delete].nodes[last.next_id].prev_id = deleted_id;
-    ts.layers[layer_from_which_delete].nodes[deleted_id] = last;
-    ts.layers[layer_from_which_delete].nodes[deleted_id].id = deleted_id;
+    if deleted_id != last.id {
+        ts.layers[layer_from_which_delete].nodes[last.prev_id].next_id = deleted_id;
+        ts.layers[layer_from_which_delete].nodes[last.next_id].prev_id = deleted_id;
+        ts.layers[layer_from_which_delete].nodes[deleted_id] = last;
+        ts.layers[layer_from_which_delete].nodes[deleted_id].id = deleted_id;
+    }
 
     /* 3. Shrink vector by 1 */
     let s = ts.layers[layer_from_which_delete].nodes.len();

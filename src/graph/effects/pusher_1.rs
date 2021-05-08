@@ -98,7 +98,7 @@ fn avg_change(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
 }
 
 fn avg_change_smart(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
-    let total_distance = v.iter().fold(0.0, |acc, x| acc + distance_between_points(x.cur_x + x.delta_x, x.cur_y + x.delta_y, tgt.x, tgt.y));
+    let total_distance = v.iter().fold(0.0, |acc, x| acc + distance_between_points(x.cur_x /* + x.delta_x */, x.cur_y /* + x.delta_y */, tgt.x, tgt.y));
 
     let mut nc = NodeChange {
         id: tgt.id,
@@ -122,7 +122,7 @@ fn inner_mods(modified_inners: &Vec<usize>, outer_changes: &NodeChangeMap, g: &G
     let mut ret = NodeChangeMap::new();
     for i in modified_inners {
         let three_closest = n_closest_outers(7, &ig.nodes[*i], outer_changes, g);
-        let avg_change = avg_change_smart(&ig.nodes[*i], &three_closest);
+        let avg_change = avg_change(&ig.nodes[*i], &three_closest);
         ret.insert(*i, avg_change);
     }
     ret
