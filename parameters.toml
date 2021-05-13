@@ -5,7 +5,10 @@
 "compression_factor" = 1.1
 "softness_factor" = 1.0
 "how_smooth" = 8
-"node_addition_threshold" = 0.06
-"node_deletion_threshold" = 0.04
+"node_addition_threshold" = 0.025
+"node_deletion_threshold" = 0.02
 "low_high" = [-0.23, 0.23]
 "recorders" = []
+
+# o ------------ 0.41 ----------- o
+# o ---- 0.205 -- o ---- 0.205 ---o

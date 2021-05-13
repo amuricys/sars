@@ -1,4 +1,5 @@
 mod pusher_1;
+mod helpers;
 
 use graph::{distance_between_nodes, distance_between_points};
 
@@ -118,20 +119,24 @@ pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition
     );
 }
 
-pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node: &Node) {
-    println!("deletion: {:?}, len: {}, layer: {}", node, ts.layers[layer_from_which_delete].nodes.len(), layer_from_which_delete);
-    println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_from_which_delete].nodes[node.prev_id], ts.layers[layer_from_which_delete].nodes[node.next_id]);
+pub fn merge_nodes_(ts: &mut ThickSurface, layer_from_which_delete: usize, nodes: (Node, Node)) {
+    println!("deletion: {:?}, len: {}, layer: {}", nodes, ts.layers[layer_from_which_delete].nodes.len(), layer_from_which_delete);
+    println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_from_which_delete].nodes[nodes.0.prev_id], ts.layers[layer_from_which_delete].nodes[nodes.0.next_id]);
 
+    /* 0. Move surviving node of the merged pair to the pair's avg position */
+    let (avg_x, avg_y) = ((nodes.0.x + nodes.1.x) / 2.0, (nodes.0.y + nodes.1.y) / 2.0);
+    ts.layers[layer_from_which_delete].nodes[nodes.1.id].x = avg_x;
+    ts.layers[layer_from_which_delete].nodes[nodes.1.id].y = avg_y;
 
     /* 1. Remove node from the graph's circular path */
-    let next_id = node.next_id;
-    let prev_id = node.prev_id;
+    let next_id = nodes.0.next_id;
+    let prev_id = nodes.0.prev_id;
     ts.layers[layer_from_which_delete].nodes[prev_id].next_id = next_id;
     ts.layers[layer_from_which_delete].nodes[next_id].prev_id = prev_id;
 
     /* 2. Swap last node and deleted node's position */
     let last = ts.layers[layer_from_which_delete].nodes.last().unwrap().clone();
-    let deleted_id = node.id;
+    let deleted_id = nodes.0.id;
     if deleted_id != last.id {
         ts.layers[layer_from_which_delete].nodes[last.prev_id].next_id = deleted_id;
         ts.layers[layer_from_which_delete].nodes[last.next_id].prev_id = deleted_id;
@@ -142,6 +147,8 @@ pub fn delete_node_(ts: &mut ThickSurface, layer_from_which_delete: usize, node:
     /* 3. Shrink vector by 1 */
     let s = ts.layers[layer_from_which_delete].nodes.len();
     ts.layers[layer_from_which_delete].nodes.truncate(s - 1);
+
+
 }
 
 fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &NodeChangeMap) -> (f64, f64) {

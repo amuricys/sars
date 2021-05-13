@@ -3,6 +3,9 @@ pub mod types;
 
 use graph::types::*;
 use linalg_helpers;
+use renderer::lines_from_thick_surface;
+use graph::effects::merge_nodes_;
+use linalg_helpers::lines_intersection;
 
 // TODO: MAKE IT NT CYCLICAL
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
@@ -95,11 +98,13 @@ pub fn closest_node_to_some_point(graph: &Graph, some_point_x: f64, some_point_y
         .unwrap()
 }
 
-pub fn thick_surface_to_lines(ts: &ThickSurface) -> Vec<(f64, f64, f64, f64)> {
-    let mut outer_lines = graph_to_lines(&ts.layers[OUTER]);
-    let mut inner_lines = graph_to_lines(&ts.layers[INNER]);
-    outer_lines.append(&mut inner_lines);
-    outer_lines
+pub fn graphs_to_lines(graphs: &Vec<Graph>) -> Vec<(f64, f64, f64, f64)> {
+    let mut ret = Vec::new();
+    for g in graphs {
+        let mut lines = graph_to_lines(g);
+        ret.append(&mut lines);
+    }
+    ret
 }
 
 pub fn distance_between_points(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
@@ -133,11 +138,24 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
     }
 }
 
-pub fn node_to_delete(g: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<Node> {
+fn merging_wouldnt_add_intersection(g: &Graph, other_g: &Graph, prev: &Node, next: &Node) -> bool {
+    let cloned = g.clone();
+    let cloned_other = other_g.clone();
+    let layer_from_which_delete = 0;
+    let mut simulated_ts = ThickSurface { layers: vec![cloned, cloned_other]};
+    merge_nodes_(&mut simulated_ts , layer_from_which_delete, (prev.clone(), next.clone()));
+    match lines_intersection(&graphs_to_lines(&simulated_ts.layers)) {
+        Some(_) => false,
+        None => true
+    }
+}
+
+pub fn nodes_to_merge(g: &Graph, other_g: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<(Node, Node)> {
     if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
-        distance_between_nodes(prev, next) < deletion_threshold
+        distance_between_nodes(prev, next) < deletion_threshold &&
+        merging_wouldnt_add_intersection(g, other_g, prev, next)
     {
-        Some(prev.clone())
+        Some((prev.clone(), next.clone()))
     } else {
         None
     }

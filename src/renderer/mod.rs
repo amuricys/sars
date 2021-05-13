@@ -21,12 +21,13 @@ use types::Params;
 
 pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();
+    let color_array = [consts::PINK, consts::BLUE, consts::PURPLE];
     for i in 0..ts.layers.len() {
         let g = &ts.layers[i];
         for node in &g.nodes {
             lines.push(types::Line {
                 points: (node.x, node.y, node.next(g).x, node.next(g).y),
-                color: consts::PINK,
+                color: color_array[i],
             });
         }
     }
@@ -178,14 +179,6 @@ pub fn setup_optimization_and_loop<F>(
     let mut imaginary_lines = Vec::new();
 
     while let Some(e) = events.next(window) {
-        let proto_change = NodeChange {
-            id: 0,
-            cur_x: ts.layers[OUTER].nodes[0].x,
-            cur_y: ts.layers[OUTER].nodes[0].y,
-            delta_x: -0.2,
-            delta_y: 0.0,
-        };
-
         imaginary_lines = if !state.hyper_debug {
             Vec::new()
         } else {
@@ -222,17 +215,6 @@ pub fn setup_optimization_and_loop<F>(
 
         state = next_state(e.press_args(), state);
         match state.step_type {
-            StepType::ManualChange => {
-                changeset = simulated_annealing::step_with_manual_change(
-                    ts,
-                    proto_change,
-                    params.initial_gray_matter_area,
-                    state.temperature,
-                    &stitching,
-                    params,
-                    rng,
-                )
-            }
             StepType::OneAtATime => {
                 changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, &stitching, params, rng)
             }
@@ -245,7 +227,7 @@ pub fn setup_optimization_and_loop<F>(
                     graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points)
                 }
             }
-            StepType::NoStep => {}
+            _ => {}
         }
         if state.should_stich {
             // stitching = stitch_choice(ts, state.stitch_strat);
