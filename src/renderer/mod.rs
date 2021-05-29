@@ -10,7 +10,7 @@ use piston::window::WindowSettings;
 
 use graph;
 
-use piston::{Button, PressEvent};
+use piston::{Button, PressEvent, Event};
 use file_io::recorders;
 use simulated_annealing;
 
@@ -18,6 +18,8 @@ use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER
 use stitcher::{stitch_choice, stitch_default};
 use stitcher::types::{Stitching, Strategy};
 use types::Params;
+use renderer::types::Line;
+use simulated_annealing::SimState;
 
 pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();
@@ -56,19 +58,16 @@ pub enum StepType {
 }
 
 #[derive(Debug, PartialOrd, PartialEq)]
-struct State {
+struct RenderState {
     pub should_step: bool,
     pub one_at_a_time: bool,
     pub step_type: StepType,
-    pub temperature: f64,
-    pub should_stich: bool,
     pub hyper_debug: bool,
-    pub stitch_strat: Strategy,
 }
 
-fn next_state(event: Option<Button>, s: State) -> State {
+fn next_state(event: Option<Button>, s: RenderState) -> RenderState {
     match event {
-        Some(piston::Button::Keyboard(piston::Key::Space)) => State {
+        Some(piston::Button::Keyboard(piston::Key::Space)) => RenderState {
             should_step: !s.should_step,
             one_at_a_time: !s.one_at_a_time,
             step_type: match s.step_type {
@@ -77,48 +76,37 @@ fn next_state(event: Option<Button>, s: State) -> State {
             },
             ..s
         },
-        Some(piston::Button::Keyboard(piston::Key::N)) => State {
+        Some(piston::Button::Keyboard(piston::Key::N)) => RenderState {
             step_type: if s.one_at_a_time { StepType::OneAtATime } else { s.step_type },
             ..s
         },
-        Some(piston::Button::Keyboard(piston::Key::M)) => State {
+        Some(piston::Button::Keyboard(piston::Key::M)) => RenderState {
             step_type: if s.one_at_a_time { StepType::ManualChange } else { s.step_type },
             ..s
         },
-        Some(piston::Button::Keyboard(piston::Key::R)) => State {
+        Some(piston::Button::Keyboard(piston::Key::R)) => RenderState {
             should_step: false,
             one_at_a_time: true,
             step_type: StepType::Reset,
-            temperature: 0.0,
             ..s
         },
-        Some(piston::Button::Keyboard(piston::Key::H)) => State {
+        Some(piston::Button::Keyboard(piston::Key::H)) => RenderState {
             hyper_debug: !s.hyper_debug,
             ..s
         },
-        Some(piston::Button::Keyboard(piston::Key::F)) => State {
-            stitch_strat: match s.stitch_strat {
-                Strategy::Greedy => Strategy::Dijkstra,
-                _ => Strategy::Greedy,
-            },
-            ..s
-        },
-        _ => State {
+        _ => RenderState {
             step_type: if !s.should_step { StepType::NoStep } else { s.step_type },
             ..s
         },
     }
 }
 
-fn initial_state(initial_temperature: f64) -> State {
-    State {
+fn initial_render_state() -> RenderState {
+    RenderState {
         should_step: false,
         one_at_a_time: true,
         step_type: StepType::NoStep,
-        temperature: initial_temperature,
-        should_stich: true,
         hyper_debug: false,
-        stitch_strat: Strategy::Greedy,
     }
 }
 
@@ -161,48 +149,52 @@ fn lines_from_change_map(ts: &ThickSurface, change_maps: Vec<NodeChangeMap>) -> 
     ret
 }
 
+fn maybe_imaginary_lines(state: &RenderState, e: &Event, sim_state: &SimState, params: &Params, imaginary_lines: Vec<Line>) -> Vec<Line> {
+    if !state.hyper_debug {
+        Vec::new()
+    } else {
+        match e.mouse_cursor_args() {
+            Some([x, y]) => {
+                let (cursor_pos_x, cursor_pos_y) = junk::from_window_to_minus1_1(x, y, consts::WINDOW_SIZE.0, consts::WINDOW_SIZE.1);
+                let closest_node = graph::closest_node_to_some_point(&sim_state.ts.layers[OUTER], cursor_pos_x, cursor_pos_y);
+                let imaginary_change = NodeChange {
+                    id: closest_node.id,
+                    cur_x: closest_node.x,
+                    cur_y: closest_node.y,
+                    delta_x: cursor_pos_x - closest_node.x,
+                    delta_y: cursor_pos_y - closest_node.y,
+                };
+                let surrounding_imaginary_changes =
+                    graph::effects::smooth_change_out(&sim_state.ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
+                let inner_imaginary_changes =
+                    graph::effects::changer_of_choice(&sim_state.ts.layers[INNER], &sim_state.ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, &sim_state.stitching);
+                lines_from_change_map(&sim_state.ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
+            }
+            None => imaginary_lines,
+        }
+    }
+}
+
+
 pub fn setup_optimization_and_loop<F>(
-    ts: &mut ThickSurface,
+    sim_state: &mut SimState,
     rng: &mut rand::rngs::ThreadRng,
     window: &mut Window,
     renderer: &mut types::Renderer,
     how_to_make_lines: F,
     params: &Params,
 ) where
-    F: Fn(&ThickSurface, &Stitching) -> Vec<types::Line>,
+    F: Fn(&SimState) -> Vec<types::Line>,
 {
-    let mut state = initial_state(params.initial_temperature);
-    let mut stitching = stitch_default(ts);
+    let mut render_state = initial_render_state();
+    let mut recording_state = recorders::RecordingState::initial_state(&params);
     let mut events = Events::new(EventSettings::new());
-    let mut output_file = recorders::create_file_with_header("output.txt", &params.recorders);
     let mut changeset = vec![];
     let mut imaginary_lines = Vec::new();
 
     while let Some(e) = events.next(window) {
-        imaginary_lines = if !state.hyper_debug {
-            Vec::new()
-        } else {
-            match e.mouse_cursor_args() {
-                Some([x, y]) => {
-                    let (cursor_pos_x, cursor_pos_y) = junk::from_window_to_minus1_1(x, y, consts::WINDOW_SIZE.0, consts::WINDOW_SIZE.1);
-                    let closest_node = graph::closest_node_to_some_point(&ts.layers[OUTER], cursor_pos_x, cursor_pos_y);
-                    let imaginary_change = NodeChange {
-                        id: closest_node.id,
-                        cur_x: closest_node.x,
-                        cur_y: closest_node.y,
-                        delta_x: cursor_pos_x - closest_node.x,
-                        delta_y: cursor_pos_y - closest_node.y,
-                    };
-                    let surrounding_imaginary_changes =
-                        graph::effects::smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
-                    let inner_imaginary_changes =
-                        graph::effects::changer_of_choice(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, &stitching);
-                    lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
-                }
-                None => imaginary_lines,
-            }
-        };
-        let mut lines = how_to_make_lines(ts, &stitching);
+        imaginary_lines = maybe_imaginary_lines(&render_state, &e, &sim_state, params, imaginary_lines);
+        let mut lines = how_to_make_lines(&sim_state);
         lines.append(&mut imaginary_lines.clone()); // I really don't get why there isn't a good immutable append operation
 
         if let Some(args) = e.render_args() {
@@ -213,27 +205,19 @@ pub fn setup_optimization_and_loop<F>(
             renderer.update(&args);
         }
 
-        state = next_state(e.press_args(), state);
-        match state.step_type {
-            StepType::OneAtATime => {
-                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, &stitching, params, rng)
-            }
+        render_state = next_state(e.press_args(), render_state);
+        match render_state.step_type {
             StepType::Automatic => {
-                changeset = simulated_annealing::step(ts, params.initial_gray_matter_area, state.temperature, &stitching, params, rng)
+                changeset = simulated_annealing::step(sim_state, params, rng)
             }
             StepType::Reset => {
-                *ts = {
-                    changeset = vec![];
-                    graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points)
-                }
+                changeset = vec![];
+                *sim_state = simulated_annealing::SimState::initial_state(params)
             }
             _ => {}
         }
-        if state.should_stich {
-            // stitching = stitch_choice(ts, state.stitch_strat);
-        }
-        match &mut output_file {
-            Some(f) => recorders::record(ts, params, f),
+        match &mut recording_state {
+            Some(f) => recorders::record(&sim_state, params, f),
             None => {}
         }
     }

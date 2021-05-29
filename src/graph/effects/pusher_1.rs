@@ -6,31 +6,6 @@ use piston::input::keyboard::Key::Out;
 use graph::effects::helpers::*;
 
 
-/*
-This fn could have a few versions:
-1. n_closest *of the changed nodes* PRE-change
-2. n_closest *of changed nodes AND non-changed nodes* PRE-change
-3. "    "     POST-change
-4. "    "     "      "     POST-change
-*/
-fn n_closest_outers<'a>(n: usize, inner_node: &Node, outer_changes: &'a NodeChangeMap, g: &Graph) -> Vec<&'a NodeChange>{
-    let mut ret = Vec::new();
-    for (_, v) in outer_changes {
-        ret.push(v);
-    }
-    ret.sort_by(|n1, n2| {
-        distance_between_nodes(&g.nodes[n1.id], inner_node)
-            .partial_cmp(&distance_between_nodes(&g.nodes[n2.id], inner_node))
-            .unwrap()
-    });
-    let mut ret2 = Vec::new();
-    for i in 0..n {
-        ret2.push(ret[i]);
-    }
-    ret2
-    //ret.iter().take(n).collect()
-}
-
 fn inner_mods(modified_inners: &Vec<usize>, outer_changes: &NodeChangeMap, g: &Graph, ig: &Graph) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
     for i in modified_inners {

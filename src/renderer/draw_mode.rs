@@ -327,8 +327,9 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
             let mut new_sb = sb.clone();
             let mut new_ts = new_sb.ts;
             let mut new_rng = new_sb.rng;
-            simulated_annealing::step(&mut new_ts, sb.initial_gm, sb.temp, &sb.s, &sb.params, &mut new_rng);
-            State::SurfaceOptimizing(StateBag {ts: new_ts, rng: new_rng, ..sb.clone() })
+            panic!("se foda");
+            // simulated_annealing::step(&mut new_ts, sb.initial_gm, sb.temp, &sb.s, &sb.params, &mut new_rng);
+            // State::SurfaceOptimizing(StateBag {ts: new_ts, rng: new_rng, ..sb.clone() })
         }
 
         _ => s.clone(),

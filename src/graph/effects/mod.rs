@@ -1,5 +1,6 @@
 mod pusher_1;
 mod helpers;
+mod pusher_2;
 
 use graph::{distance_between_nodes, distance_between_points};
 

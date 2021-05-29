@@ -32,6 +32,8 @@ pub fn toml_table_to_params(table: toml::Value) -> types::Params {
                     .iter()
                     .map(|x| String::from(x.as_str().unwrap()))
                     .collect(),
+                temperature_param: m.get("temperature_param").unwrap().as_float().unwrap(),
+                output_file_path: String::from(m.get("output_file_path").unwrap().as_str().unwrap()),
             }
         }
         _ => panic!("No key-value table found in parameters.toml"),

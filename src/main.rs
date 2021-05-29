@@ -20,6 +20,7 @@ use renderer::draw_mode::draw_mode_rendering;
 use std::env;
 use stitcher::stitch_choice;
 
+
 fn real_main() {
     let params: types::Params = match std::fs::read_to_string("parameters.toml") {
         Err(_) => panic!("No parameters.toml file found in directory"),
@@ -30,12 +31,14 @@ fn real_main() {
 
     let (mut renderer, mut window) = renderer::setup_renderer();
 
+    let mut sim_state = simulated_annealing::SimState::initial_state(&params);
+
     renderer::setup_optimization_and_loop(
-        &mut my_graph,
+        &mut sim_state,
         &mut rng,
         &mut window,
         &mut renderer,
-        |ts, s| renderer::lines_from_thick_surface(ts, s),
+        |ss| renderer::lines_from_thick_surface(&ss.ts, &ss.stitching),
         &params,
     )
 }

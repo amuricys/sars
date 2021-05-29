@@ -12,4 +12,6 @@ pub struct Params {
     pub node_deletion_threshold: f64,
     pub low_high: (f64, f64),
     pub recorders: Vec<String>,
+    pub temperature_param: f64,
+    pub output_file_path: String
 }

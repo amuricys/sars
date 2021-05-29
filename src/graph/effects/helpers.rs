@@ -1,5 +1,5 @@
 use graph::types::{NodeChangeMap, Graph, Node, NodeChange};
-use graph::{closest_node_to_some_point, distance_between_points};
+use graph::{closest_node_to_some_point, distance_between_points, distance_between_nodes};
 
 pub(crate) fn most_prev_next<'a>(ncm: &NodeChangeMap, g: &'a Graph) -> (&'a Node, &'a Node){
     let (_, most_next) = ncm.unwrap().iter().find(|(_, v)| {
@@ -106,5 +106,29 @@ pub fn avg_change_smart(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
 /* Averages based on the distance from the changed nodes' POST change positions to the target */
 pub fn avg_change_smarter(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
     avg_change_essence(tgt, v, PrePost::Post)
+}
 
+/*
+This fn could have a few versions:
+1. n_closest *of the changed nodes* PRE-change
+2. n_closest *of changed nodes AND non-changed nodes* PRE-change
+3. "    "     POST-change
+4. "    "     "      "     POST-change
+*/
+pub fn n_closest_outers<'a>(n: usize, inner_node: &Node, outer_changes: &'a NodeChangeMap, g: &Graph) -> Vec<&'a NodeChange>{
+    let mut ret = Vec::new();
+    for (_, v) in outer_changes {
+        ret.push(v);
+    }
+    ret.sort_by(|n1, n2| {
+        distance_between_nodes(&g.nodes[n1.id], inner_node)
+            .partial_cmp(&distance_between_nodes(&g.nodes[n2.id], inner_node))
+            .unwrap()
+    });
+    let mut ret2 = Vec::new();
+    for i in 0..n {
+        ret2.push(ret[i]);
+    }
+    ret2
+    //ret.iter().take(n).collect()
 }

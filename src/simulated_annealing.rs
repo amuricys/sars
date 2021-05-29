@@ -5,6 +5,8 @@ use linalg_helpers::lines_intersection;
 use rand::Rng;
 use stitcher::types::Stitching;
 use types::Params;
+use graph::circular_thick_surface;
+use stitcher::stitch_default;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
 
@@ -37,6 +39,11 @@ pub fn energy(ts: &ThickSurface, initial_gray_matter_area: f64) -> f64 {
 
     // TODO: parametrize?
     white_matter + (1.0 + gray_matter_stretch).powf(2.0)
+}
+
+pub fn temperature (sim_state: &SimState, slope: f64) -> f64 {
+    let new = sim_state.timestep as f64 * slope;
+    if new < 0.0 { 0.0 } else { new }
 }
 
 fn probability_to_accept_neighbor_state(energy_state: f64, energy_neighbor: f64, temperature: f64) -> f64 {
@@ -111,13 +118,29 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
     }
 }
 
-static mut THING: bool = false;
+#[derive (Clone, Debug)]
+pub struct SimState {
+    pub ts: ThickSurface,
+    pub temperature: f64,
+    pub stitching: Stitching,
+    pub timestep: u64
+}
+
+impl SimState {
+    pub fn initial_state(p: &Params) -> SimState {
+        let ts = circular_thick_surface(p.initial_radius, p.initial_thickness, p.initial_num_points);
+        let s = stitch_default(&ts);
+        SimState {
+            ts: ts,
+            temperature: p.initial_temperature,
+            stitching: s,
+            timestep: 0
+        }
+    }
+}
 
 pub fn step(
-    ts: &mut ThickSurface,
-    initial_gray_matter_area: f64,
-    temperature: f64,
-    stitch: &Stitching,
+    sim_state: &mut SimState,
     params: &Params,
     rng: &mut rand::rngs::ThreadRng,
 ) -> Vec<NodeChangeMap> {
@@ -127,19 +150,22 @@ pub fn step(
     let node_addition_threshold = params.node_addition_threshold;
     let node_deletion_threshold = params.node_deletion_threshold;
 
-    let (outer_changes, inner_changes) = neighbor_changes(ts, OUTER, INNER, how_smooth, compression_factor, stitch, low_high, rng);
+    let (outer_changes, inner_changes) = neighbor_changes(&sim_state.ts, OUTER, INNER, how_smooth, compression_factor, &sim_state.stitching, low_high, rng);
 
-    let energy_state = energy(ts, initial_gray_matter_area);
-    apply_changes(&mut ts.layers[OUTER], &outer_changes);
-    apply_changes(&mut ts.layers[INNER], &inner_changes);
-    let energy_neighbor = energy(ts, initial_gray_matter_area);
+    let energy_state = energy(&sim_state.ts, params.initial_gray_matter_area);
+    apply_changes(&mut sim_state.ts.layers[OUTER], &outer_changes);
+    apply_changes(&mut sim_state.ts.layers[INNER], &inner_changes);
+    let energy_neighbor = energy(&sim_state.ts, params.initial_gray_matter_area);
 
-    intersection_effects(ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, temperature, rng);
-    add_single_node_effects(ts, OUTER, node_addition_threshold);
-    add_single_node_effects(ts, INNER, node_addition_threshold);
+    intersection_effects(&mut sim_state.ts, &outer_changes, &inner_changes, energy_state, energy_neighbor, sim_state.temperature, rng);
+    add_single_node_effects(&mut sim_state.ts, OUTER, node_addition_threshold);
+    add_single_node_effects(&mut sim_state.ts, INNER, node_addition_threshold);
 
-    delete_single_node_effects(ts, OUTER, node_deletion_threshold);
-    delete_single_node_effects(ts, INNER, node_deletion_threshold);
+    delete_single_node_effects(&mut sim_state.ts, OUTER, node_deletion_threshold);
+    delete_single_node_effects(&mut sim_state.ts, INNER, node_deletion_threshold);
+
+    sim_state.temperature = temperature(sim_state, params.temperature_param);
+    sim_state.timestep += 1;
 
     vec![outer_changes, inner_changes]
 }
