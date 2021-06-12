@@ -1,11 +1,11 @@
 pub mod effects;
 pub mod types;
 
+use graph::effects::merge_nodes_;
 use graph::types::*;
 use linalg_helpers;
-use renderer::lines_from_thick_surface;
-use graph::effects::merge_nodes_;
 use linalg_helpers::lines_intersection;
+use renderer::lines_from_thick_surface;
 
 // TODO: MAKE IT NT CYCLICAL
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
@@ -138,27 +138,40 @@ pub fn node_to_add(g: &Graph, prev: &Node, next: &Node, addition_threshold: f64)
     }
 }
 
-fn merging_wouldnt_add_intersection(g: &Graph, other_g: &Graph, prev: &Node, next: &Node) -> bool {
-    let cloned = g.clone();
-    let cloned_other = other_g.clone();
-    let layer_from_which_delete = 0;
-    let mut simulated_ts = ThickSurface { layers: vec![cloned, cloned_other]};
-    merge_nodes_(&mut simulated_ts , layer_from_which_delete, (prev.clone(), next.clone()));
+fn merging_wouldnt_add_intersection(ts: &ThickSurface, node_merging: &NodeMerging) -> bool {
+    let mut simulated_ts = ts.clone();
+    merge_nodes_(&mut simulated_ts, node_merging);
     match lines_intersection(&graphs_to_lines(&simulated_ts.layers)) {
         Some(_) => false,
-        None => true
+        None => true,
     }
 }
 
-pub fn nodes_to_merge(g: &Graph, other_g: &Graph, prev: &Node, next: &Node, deletion_threshold: f64) -> Option<(Node, Node)> {
-    if prev.next(g).id == next.id && next.prev(g).id == prev.id && /* Might be worth moving all conditions to a function */
-        distance_between_nodes(prev, next) < deletion_threshold &&
-        merging_wouldnt_add_intersection(g, other_g, prev, next)
-    {
-        Some((prev.clone(), next.clone()))
-    } else {
-        None
+fn can_merge(ts: &ThickSurface, node_merging: &NodeMerging, deletion_threshold: f64) -> bool {
+    distance_between_nodes(&node_merging.one_end, &node_merging.oth_end) < deletion_threshold && merging_wouldnt_add_intersection(ts, node_merging)
+}
+
+#[derive(Clone, Debug)]
+pub struct NodeMerging {
+    one_end: Node,
+    oth_end: Node,
+    dist: usize,
+    layer_id: usize,
+}
+
+pub fn nodes_to_merge(ts: &ThickSurface, layer_id: usize, src: &Node, deletion_threshold: f64, max_merge_steps_away: usize) -> Option<NodeMerging> {
+    for i in 1..max_merge_steps_away + 1 {
+        let m = NodeMerging {
+            one_end: src.clone(),
+            oth_end: src.next_by(&ts.layers[layer_id], i).clone(),
+            dist: i,
+            layer_id: layer_id,
+        };
+        if can_merge(ts, &m, deletion_threshold) {
+            return Some(m);
+        }
     }
+    None
 }
 
 #[cfg(test)]

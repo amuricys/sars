@@ -142,7 +142,7 @@ impl Strategy {
     pub(crate) fn other(&self) -> Strategy {
         match self {
             Strategy::Greedy => Strategy::Dijkstra,
-            Strategy::Dijkstra => Strategy::Greedy
+            Strategy::Dijkstra => Strategy::Greedy,
         }
     }
 }

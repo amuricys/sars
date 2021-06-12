@@ -5,10 +5,11 @@
 "compression_factor" = 1.1
 "softness_factor" = 1.0
 "how_smooth" = 8
-"node_addition_threshold" = 0.025
-"node_deletion_threshold" = 0.02
-"low_high" = [-0.23, 0.23]
-"recorders" = ["energy", "inner area", "num inner points", "num outer points", "outer perimeter"]
+"max_merge_steps_away" = 3
+"node_addition_threshold" = 0.035
+"node_deletion_threshold" = 0.01
+"low_high" = [-0.2, 0.2]
+"recorders" = []
 "temperature_param" = -0.05
 "output_file_path" = "output.csv"
 # o ------------ 0.41 ----------- o

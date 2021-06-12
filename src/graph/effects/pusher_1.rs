@@ -1,10 +1,9 @@
-use graph::types::{ThickSurface, NodeChangeMap, OUTER, NodeChange, Graph, Node, INNER};
-use stitcher::types::Stitching;
 use graph::effects::apply_changes;
+use graph::effects::helpers::*;
+use graph::types::{Graph, Node, NodeChange, NodeChangeMap, ThickSurface, INNER, OUTER};
 use graph::{closest_node_to_some_point, distance_between_nodes, distance_between_points};
 use piston::input::keyboard::Key::Out;
-use graph::effects::helpers::*;
-
+use stitcher::types::Stitching;
 
 fn inner_mods(modified_inners: &Vec<usize>, outer_changes: &NodeChangeMap, g: &Graph, ig: &Graph) -> NodeChangeMap {
     let mut ret = NodeChangeMap::new();
@@ -16,7 +15,7 @@ fn inner_mods(modified_inners: &Vec<usize>, outer_changes: &NodeChangeMap, g: &G
     ret
 }
 
-pub fn push_inners (inner: &Graph, outer: &Graph, outer_changes: &NodeChangeMap, s: &Stitching) -> NodeChangeMap {
+pub fn push_inners(inner: &Graph, outer: &Graph, outer_changes: &NodeChangeMap, s: &Stitching) -> NodeChangeMap {
     let (most_outer, most_inner) = most_prev_next(outer_changes, outer);
     let (closest_inner_1, closest_inner_2) = closest_internal_nodes(most_outer, most_inner, inner);
     let modi = modified_inners(closest_inner_1, closest_inner_2, inner);

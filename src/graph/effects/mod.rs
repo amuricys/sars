@@ -1,8 +1,8 @@
-mod pusher_1;
 mod helpers;
+mod pusher_1;
 mod pusher_2;
 
-use graph::{distance_between_nodes, distance_between_points};
+use graph::{distance_between_nodes, distance_between_points, NodeMerging};
 
 use rand::Rng;
 
@@ -10,6 +10,12 @@ use graph::types::*;
 use linalg_helpers::{bisecting_vector, lines_intersection, norm};
 use stitcher::types::Stitching;
 use vec1::Vec1;
+
+struct GraphChanges {
+    added_nodes: Vec<Node>,
+    deleted_nodes: Vec<Node>,
+    changed_nodes: Vec<NodeChange>,
+}
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {
     /* TODO: Not thread safe */
@@ -114,261 +120,63 @@ pub fn smooth_change_out(g: &Graph, change: NodeChange, how_smooth: Smooth<usize
 pub fn add_node_(ts: &mut ThickSurface, layer_to_which_add: usize, node_addition: &NodeAddition) {
     ts.layers[layer_to_which_add].nodes[node_addition.n.next_id].prev_id = node_addition.n.id;
     ts.layers[layer_to_which_add].nodes[node_addition.n.prev_id].next_id = node_addition.n.id;
-    ts.layers[layer_to_which_add].nodes.insert(
-        node_addition.n.id,
-        node_addition.n.clone(),
-    );
+    ts.layers[layer_to_which_add].nodes.insert(node_addition.n.id, node_addition.n.clone());
 }
 
-pub fn merge_nodes_(ts: &mut ThickSurface, layer_from_which_delete: usize, nodes: (Node, Node)) {
-    println!("deletion: {:?}, len: {}, layer: {}", nodes, ts.layers[layer_from_which_delete].nodes.len(), layer_from_which_delete);
-    println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_from_which_delete].nodes[nodes.0.prev_id], ts.layers[layer_from_which_delete].nodes[nodes.0.next_id]);
+// Returns prev id
+fn kill(id: usize, g: &mut Graph) -> usize {
+    let prev_id = g.nodes[id].prev_id;
+    let next_id = g.nodes[id].next_id;
+    g.nodes[prev_id].next_id = next_id;
+    g.nodes[next_id].prev_id = prev_id;
 
-    /* 0. Move surviving node of the merged pair to the pair's avg position */
-    let (avg_x, avg_y) = ((nodes.0.x + nodes.1.x) / 2.0, (nodes.0.y + nodes.1.y) / 2.0);
-    ts.layers[layer_from_which_delete].nodes[nodes.1.id].x = avg_x;
-    ts.layers[layer_from_which_delete].nodes[nodes.1.id].y = avg_y;
-
-    /* 1. Remove node from the graph's circular path */
-    let next_id = nodes.0.next_id;
-    let prev_id = nodes.0.prev_id;
-    ts.layers[layer_from_which_delete].nodes[prev_id].next_id = next_id;
-    ts.layers[layer_from_which_delete].nodes[next_id].prev_id = prev_id;
-
-    /* 2. Swap last node and deleted node's position */
-    let last = ts.layers[layer_from_which_delete].nodes.last().unwrap().clone();
-    let deleted_id = nodes.0.id;
-    if deleted_id != last.id {
-        ts.layers[layer_from_which_delete].nodes[last.prev_id].next_id = deleted_id;
-        ts.layers[layer_from_which_delete].nodes[last.next_id].prev_id = deleted_id;
-        ts.layers[layer_from_which_delete].nodes[deleted_id] = last;
-        ts.layers[layer_from_which_delete].nodes[deleted_id].id = deleted_id;
+    /* 2. Swap deleted with last, if id isnt last, because that would be pointless */
+    let last = g.nodes.last().unwrap().clone();
+    if id != last.id {
+        g.nodes[last.prev_id].next_id = id;
+        g.nodes[last.next_id].prev_id = id;
+        g.nodes[id] = last;
+        g.nodes[id].id = id;
     }
 
     /* 3. Shrink vector by 1 */
-    let s = ts.layers[layer_from_which_delete].nodes.len();
-    ts.layers[layer_from_which_delete].nodes.truncate(s - 1);
+    let s = g.nodes.len();
+    g.nodes.truncate(s - 1);
 
-
-}
-
-fn direction_vector0(_other_graph: &Graph, change: &NodeChange, _other_graph_changes: &NodeChangeMap) -> (f64, f64) {
-    (change.cur_x, change.cur_y)
-}
-
-fn direction_vector1(other_graph: &Graph, change: &NodeChange, other_graph_changes: &NodeChangeMap) -> (f64, f64) {
-    let changed_nodes_prev = other_graph.nodes[change.id].prev(other_graph);
-    let (prev_ref_x, prev_ref_y) = match other_graph_changes.get(&changed_nodes_prev.id) {
-        Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
-        None => (changed_nodes_prev.x, changed_nodes_prev.y),
-    };
-    let changed_nodes_next = other_graph.nodes[change.id].next(other_graph);
-    let (next_ref_x, next_ref_y) = match other_graph_changes.get(&changed_nodes_next.id) {
-        Some(nc) => (nc.cur_x + nc.delta_x, nc.cur_y + nc.delta_y),
-        None => (changed_nodes_next.x, changed_nodes_next.y),
-    };
-    /* prev_ref_xy and next_ref_xy are the position along which we want to find the direction vector */
-    let (dir_x, dir_y) = bisecting_vector(change.cur_x, change.cur_y, prev_ref_x, prev_ref_y, next_ref_x, next_ref_y);
-
-    (
-        -dir_x * norm(change.delta_x, change.delta_y),
-        -dir_y * norm(change.delta_x, change.delta_y),
-    )
-}
-
-fn direction_from(org: (f64, f64), dst: (f64, f64)) -> (f64, f64) {
-    let dist_v = (dst.0 - org.0, dst.1 - org.1);
-    let norm = norm(dist_v.0, dist_v.1);
-    (dist_v.0 / norm, dist_v.1 / norm)
-}
-
-fn would_change_intersect(index: usize, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> bool {
-    let (other_prev_x, other_prev_y) = other_graph.nodes[other_change.id].prev(other_graph).pos();
-    let (other_next_x, other_next_y) = other_graph.nodes[other_change.id].next(other_graph).pos();
-    let (other_changed_pos_x, other_changed_pos_y) = other_change.changed_pos();
-    let (this_prev_x, this_prev_y) = graph.nodes[index].prev(graph).pos();
-    let (this_next_x, this_next_y) = graph.nodes[index].next(graph).pos();
-    let (this_pos_x, this_pos_y) = graph.nodes[index].pos();
-    match lines_intersection(&vec![
-        (other_prev_x, other_prev_y, other_changed_pos_x, other_changed_pos_y),
-        (other_next_x, other_next_y, other_changed_pos_x, other_changed_pos_y),
-        (this_prev_x, this_prev_y, this_pos_x, this_pos_y),
-        (this_next_x, this_next_y, this_pos_x, this_pos_y),
-    ]) {
-        Some(_) => true,
-        None => false,
+    /* 4.0. */
+    if prev_id != g.nodes.len() {
+        prev_id
+    }
+    /* 4.1. */
+    else {
+        g.nodes[id].prev_id
     }
 }
 
-fn is_change_push2(index: usize, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> bool {
-    let (other_cs_next_x, other_cs_next_y) = other_graph.next(other_change.id).pos();
-    let (other_cs_prev_x, other_cs_prev_y) = other_graph.prev(other_change.id).pos();
-    let (pre_change_bisecting_x, pre_change_bisecting_y) = bisecting_vector(
-        other_change.cur_x,
-        other_change.cur_y,
-        other_cs_next_x,
-        other_cs_next_y,
-        other_cs_prev_x,
-        other_cs_prev_y,
-    );
-    println!("pre_change: {}, {}", other_change.cur_x, other_change.cur_y);
-    println!("bisecting: {}, {}", pre_change_bisecting_x, pre_change_bisecting_y);
-    println!(
-        "post_change: {}, {}\n",
-        other_change.cur_x + other_change.delta_x,
-        other_change.cur_y + other_change.delta_x
-    );
+fn update_the_fk_thing(m: &NodeMerging, g: &mut Graph) {
+    let mut amt_killed = 0;
+    let mut killed_id = m.one_end.next(g).id;
+    loop {
+        // Kill a node and get the newest prev of the next victim
+        killed_id = kill(killed_id, g);
 
-    let dist_cur_to_bisecting = distance_between_points(other_change.cur_x, other_change.cur_y, pre_change_bisecting_x, pre_change_bisecting_y);
-    let dist_changed_to_bisecting = distance_between_points(
-        other_change.changed_pos().0,
-        other_change.changed_pos().1,
-        pre_change_bisecting_x,
-        pre_change_bisecting_y,
-    );
-    let dist_cur_to_inner = distance_between_points(other_change.cur_x, other_change.cur_y, graph.nodes[index].x, graph.nodes[index].y);
-    dist_cur_to_bisecting > dist_changed_to_bisecting + dist_cur_to_inner
-}
-
-fn for_a_node_affected_make_the(index: usize, graph: &Graph, other_graph: &Graph, other_change: &NodeChange) -> NodeChange {
-    let (potentially_wrongly_signed_dir_x, potentially_wrongly_signed_dir_y) = direction_from(
-        (graph.nodes[index].x, graph.nodes[index].y),
-        (other_change.cur_x + other_change.delta_x, other_change.cur_y + other_change.delta_y),
-    );
-    let (direction_x, direction_y) = if is_change_push2(index, graph, other_graph, other_change) {
-        (-potentially_wrongly_signed_dir_x, -potentially_wrongly_signed_dir_y)
-    } else {
-        (potentially_wrongly_signed_dir_x, potentially_wrongly_signed_dir_y)
-    };
-    let distance_to_original_position = norm(graph.nodes[index].x - other_change.cur_x, graph.nodes[index].y - other_change.cur_y);
-
-    let (desired_delta_x, desired_delta_y) = (direction_x * distance_to_original_position, direction_y * distance_to_original_position);
-    let (changed_nodes_new_pos_x, changed_nodes_new_pos_y) = (other_change.cur_x + other_change.delta_x, other_change.cur_y + other_change.delta_y);
-    let (desired_pos_x, desired_pos_y) = (changed_nodes_new_pos_x - desired_delta_x, changed_nodes_new_pos_y - desired_delta_y);
-    let (delta_from_current_node_to_desired_pos_x, delta_from_current_node_to_desired_pos_y) =
-        (desired_pos_x - graph.nodes[index].x, desired_pos_y - graph.nodes[index].y);
-
-    NodeChange {
-        id: index,
-        cur_x: graph.nodes[index].x,
-        cur_y: graph.nodes[index].y,
-        delta_x: delta_from_current_node_to_desired_pos_x,
-        delta_y: delta_from_current_node_to_desired_pos_y,
-    }
-}
-
-fn weigh_change(inner_node_affected: usize, inner_graph: &Graph, outer_graph: &Graph, s: &Stitching, outer_change: &NodeChange) -> f64 {
-    let outer_others = s.get(INNER, &inner_graph.nodes[inner_node_affected]);
-    let (inn_x, inn_y) = inner_graph.nodes[inner_node_affected].pos();
-    let total_distance = outer_others.iter().fold(0.0, |acc, x| {
-        let (out_x, out_y) = outer_graph.nodes[*x].pos();
-        acc + distance_between_points(inn_x, inn_y, out_x, out_y)
-    });
-    let distance_to_changed = distance_between_points(inn_x, inn_y, outer_change.cur_x, outer_change.cur_y);
-    distance_to_changed / total_distance
-}
-
-fn for_ALL_nodes_affected_make_the(
-    inner_nodes_affected: &Vec1<usize>,
-    inner_graph: &Graph,
-    outer_graph: &Graph,
-    outer_change: &NodeChange,
-    s: &Stitching,
-) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    for i in inner_nodes_affected {
-        let weight = weigh_change(*i, inner_graph, outer_graph, s, outer_change);
-        println!("{}", weight);
-        let change_individual = for_a_node_affected_make_the(*i, inner_graph, outer_graph, outer_change);
-        ret.insert(
-            *i,
-            NodeChange {
-                delta_x: change_individual.delta_x * weight,
-                delta_y: change_individual.delta_y * weight,
-                ..change_individual
-            },
-        );
-    }
-    ret
-}
-
-fn for_ALL_nodes_affected_make_the2(
-    inner_nodes_affected: &Vec1<usize>,
-    inner_graph: &Graph,
-    outer_graph: &Graph,
-    outer_change: &NodeChange,
-    s: &Stitching,
-) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    for i in inner_nodes_affected {
-        let weight = weigh_change(*i, inner_graph, outer_graph, s, outer_change);
-        let (cur_x, cur_y) = inner_graph.nodes[*i].pos();
-        ret.insert(
-            *i,
-            NodeChange {
-                id: *i,
-                cur_x,
-                cur_y,
-                delta_x: outer_change.delta_x * weight,
-                delta_y: outer_change.delta_y * weight,
-            },
-        );
-    }
-    ret
-}
-
-fn changes_from_other_graph(
-    this_graph: &Graph,
-    other_graph: &Graph,
-    other_graph_changes: &NodeChangeMap,
-    _compression_factor: f64,
-    s: &Stitching,
-) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    for (_, c) in other_graph_changes {
-        let closest_node_affected = s.get_closest_correspondent(OUTER, &other_graph.nodes[c.id]);
-        let inner_change = for_a_node_affected_make_the(closest_node_affected, this_graph, other_graph, c);
-        ret.insert(inner_change.id, inner_change);
-    }
-    ret
-}
-
-fn changes_from_other_graph2(
-    inner_graph: &Graph,
-    outer_graph: &Graph,
-    other_graph_changes: &NodeChangeMap,
-    _compression_factor: f64,
-    s: &Stitching,
-) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    for (_, c) in other_graph_changes {
-        let inner_nodes = s.get(OUTER, &outer_graph.nodes[c.id]);
-        let inner_changes = for_ALL_nodes_affected_make_the(&inner_nodes, inner_graph, outer_graph, c, s);
-
-        for (x, y) in &inner_changes {
-            ret.insert(*x, y.clone());
+        amt_killed += 1;
+        if amt_killed == m.dist {
+            break;
         }
     }
-    ret
 }
 
-fn changes_from_other_graph3(
-    inner_graph: &Graph,
-    outer_graph: &Graph,
-    other_graph_changes: &NodeChangeMap,
-    _compression_factor: f64,
-    s: &Stitching,
-) -> NodeChangeMap {
-    let mut ret = NodeChangeMap::new();
-    for (_, c) in other_graph_changes {
-        let inner_nodes = s.get(OUTER, &outer_graph.nodes[c.id]);
-        let inner_changes = for_ALL_nodes_affected_make_the2(&inner_nodes, inner_graph, outer_graph, c, s);
+pub fn merge_nodes_(ts: &mut ThickSurface, m: &NodeMerging) {
+    // println!("deletion: {:?}, len: {}, layer: {}", m, ts.layers[layer_from_which_delete].nodes.len(), layer_from_which_delete);
+    // println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_from_which_delete].nodes[m.one_end.prev_id], ts.layers[layer_from_which_delete].nodes[m.oth_end.next_id]);
+    let layer_from_which_delete = m.layer_id;
+    /* 0. Move surviving node of the merged pair to the pair's avg position */
+    let (avg_x, avg_y) = ((m.one_end.x + m.oth_end.x) / 2.0, (m.one_end.y + m.oth_end.y) / 2.0);
+    ts.layers[layer_from_which_delete].nodes[m.one_end.id].x = avg_x;
+    ts.layers[layer_from_which_delete].nodes[m.one_end.id].y = avg_y;
 
-        for (x, y) in &inner_changes {
-            ret.insert(*x, y.clone());
-        }
-    }
-    ret
+    update_the_fk_thing(m, &mut ts.layers[layer_from_which_delete])
 }
 
 pub fn changer_of_choice(
@@ -384,7 +192,8 @@ pub fn changer_of_choice(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use graph::{area, circular_graph, circular_thick_surface, node_to_add};
+    use graph::{area, circular_graph, circular_thick_surface, cyclic_graph_from_coords, node_to_add};
+    use linalg_helpers::circular_points;
 
     fn assert_cyclicness(g: &Graph) {
         let fst = &g.nodes[0];
@@ -440,21 +249,31 @@ mod tests {
     }
 
     #[test]
-    // fn inner_from_outer_changes() {
-    //     let vertical_line = [(0.0, 1.0), (0.0, 0.0), (0.0,-1.0)];
-    //     let vertical_line_slightly_to_left = [(-0.2, 1.0), (-0.2, 0.0), (-0.2,-1.0)];
-    //     let mut test_outer_graph = cyclic_graph_from_coords(&Vec1::try_from_vec(Vec::from(vertical_line)).unwrap());
-    //     let mut test_inner_graph = cyclic_graph_from_coords(&Vec1::try_from_vec(Vec::from(vertical_line_slightly_to_left)).unwrap());
-    //     establish_correspondences(&mut test_outer_graph, &mut test_inner_graph);
-    //     let mut the_change = HashMap::new();
-    //     the_change.insert(1, NodeChange{ id: 1, cur_x: 0.0, cur_y: 0.0, delta_x: 0.5, delta_y: 0.0 });
-    //     let the_fuckin_change = changes_from_other_graph(&test_inner_graph, &test_outer_graph, &the_change, 1.0);
-    //
-    //     println!("{:?}", the_fuckin_change);
-    //     assert_eq!(the_fuckin_change[&1 ).unwrap, 0.5);
-    //     assert_eq!(the_fuckin_change.get(&1 ).unwrap().delta_y, 0.0);
-    //
-    // }
+    fn merging() {
+        let circle = circular_points(0.0, 0.0, 1.0, 20);
+        let inner_circle = circular_points(0.0, 0.0, 0.3, 18);
+        let mut g = cyclic_graph_from_coords(&circle);
+        let mut ig = cyclic_graph_from_coords(&inner_circle);
+        let one_end = g.nodes[19].clone();
+        let other_end = one_end.next_by(&g, 1).clone();
+
+        let mut my_ts = ThickSurface { layers: vec![g, ig] };
+
+        let len = my_ts.layers[OUTER].nodes.len();
+
+        let merging = NodeMerging {
+            one_end: one_end,
+            oth_end: other_end,
+            dist: 8,
+            layer_id: OUTER,
+        };
+        merge_nodes_(&mut my_ts, &merging);
+        let len_after = my_ts.layers[OUTER].nodes.len();
+
+        assert_cyclicness(&my_ts.layers[OUTER]);
+        assert!(len == len_after + merging.dist);
+    }
+
     #[test]
     fn random_node_is_changed() {
         // TODO: This should be generated
@@ -484,21 +303,21 @@ mod tests {
             &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]),
             0.000001,
         );
-        add_node_(&mut circular, OUTER, to_add.unwrap());
+        add_node_(&mut circular, OUTER, &to_add.unwrap());
         let to_add = node_to_add(
             &circular.layers[OUTER],
             &circular.layers[OUTER].nodes[10],
             &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]),
             0.000001,
         );
-        add_node_(&mut circular, OUTER, to_add.unwrap());
+        add_node_(&mut circular, OUTER, &to_add.unwrap());
         let to_add = node_to_add(
             &circular.layers[OUTER],
             &circular.layers[OUTER].nodes[10],
             &circular.layers[OUTER].nodes[10].next(&circular.layers[OUTER]),
             0.000001,
         );
-        add_node_(&mut circular, OUTER, to_add.unwrap());
+        add_node_(&mut circular, OUTER, &to_add.unwrap());
 
         let to_add = node_to_add(
             &circular.layers[INNER],
@@ -506,8 +325,398 @@ mod tests {
             &circular.layers[INNER].nodes[10].next(&circular.layers[INNER]),
             0.000001,
         );
-        add_node_(&mut circular, INNER, to_add.unwrap());
+        add_node_(&mut circular, INNER, &to_add.unwrap());
 
         /*TODO: FUCK, gotta fix these tests bad. */
+    }
+
+    #[test]
+    fn alright_well_what_the_fuck() {
+        let lines1 = vec![
+            (-0.47455814685964076, 0.02418430708367739, -0.47418182263387343, 0.0005754319767275209),
+            (-0.40333055149870034, -0.20846214407358032, -0.41335416516086515, -0.18603659475260398),
+            (-0.47425524623024257, 0.04798895955789513, -0.47455814685964076, 0.02418430708367739),
+            (-0.3761716702094736, -0.24202378314289874, -0.389751110854087, -0.22524296360823953),
+            (0.21199187936621028, -0.7029978247505329, 0.22172010021931382, -0.7213153252814447),
+            (-0.47220622087841996, 0.09507574714654095, -0.4734122938894088, 0.0716912030469585),
+            (-0.4707744820193729, -0.06515249420317677, -0.4707383442261934, -0.08552486183965317),
+            (0.14740213338726227, -0.4770310753020222, 0.1281586270245375, -0.46563892287769915),
+            (0.16235972288004358, -0.4913814233658803, 0.14740213338726227, -0.4770310753020222),
+            (-0.5160502560146472, -0.377233994738797, -0.528619972467082, -0.3835756286764723),
+            (-0.4708186128577246, 0.11794089659427533, -0.47220622087841996, 0.09507574714654095),
+            (-0.46973828194893663, 0.1706779845607383, -0.46747181270498417, 0.16208848548752697),
+            (-0.62053558210051, -0.6249254307106407, -0.6063014584137812, -0.6282041927562753),
+            (-0.4707383442261934, -0.08552486183965317, -0.470181109850615, -0.10627966258683175),
+            (0.08902207477077065, -0.45568424961549087, 0.06830839284238253, -0.45052075765717214),
+            (-0.47418182263387343, 0.0005754319767275209, -0.4729858839549733, -0.022454657586138828),
+            (-0.4734122938894088, 0.0716912030469585, -0.47425524623024257, 0.04798895955789513),
+            (-0.680949391107315, -0.5966933623135511, -0.6813683118815175, -0.6017581314460532),
+            (-0.4686036674927001, -0.14801948128667994, -0.4675834595103637, -0.16900449923934957),
+            (-0.4693568344409386, 0.14026965469213276, -0.4708186128577246, 0.11794089659427533),
+            (-0.389751110854087, -0.22524296360823953, -0.40333055149870034, -0.20846214407358032),
+            (-0.38616726879442187, 0.03528695629550697, -0.3780251638978805, 0.05857631691369382),
+            (0.17671349915381085, -0.5058140484384753, 0.16235972288004358, -0.4913814233658803),
+            (-0.46747181270498417, 0.16208848548752697, -0.4693568344409386, 0.14026965469213276),
+            (-0.4116221590434257, 0.1478384912443763, -0.4211573944690144, 0.17539366518993035),
+            (-0.26495766035541, -0.4166341213489104, -0.24034747019318276, -0.4187846558052146),
+            (-0.2861103069413924, -0.4147620519400792, -0.26495766035541, -0.4166341213489104),
+            (-0.16210403681725838, -0.3567479542691109, -0.18184955513318102, -0.3490585462447369),
+            (-0.4139338741993281, -0.08565632709334586, -0.41218302486573943, -0.06374338759595996),
+            (-0.40924428133726976, -0.04172979756637507, -0.4034750282015578, -0.022475609100904563),
+            (-0.5272928553958934, -0.4665071459326373, -0.5142959416189683, -0.44873137120549056),
+            (0.20951122920088036, -0.547612806685765, 0.1955046602229735, -0.5291188650742192),
+            (-0.46555996075618766, -0.22981316203611835, -0.4653644363876655, -0.24978611540092255),
+            (-0.4653644363876655, -0.24978611540092255, -0.4665535435095609, -0.2699396126551063),
+            (0.06830839284238253, -0.45052075765717214, 0.046878692420155084, -0.44570412033548357),
+            (-0.4657554851247098, -0.20984020867131414, -0.46555996075618766, -0.22981316203611835),
+            (-0.6157037298357556, -0.4771541914195422, -0.6391912000484699, -0.5050489813386541),
+            (-0.46569054719902836, 0.18773399715874903, -0.4700289234674924, 0.17901929189462873),
+            (-0.32889425505320147, -0.41385368986009413, -0.3075257653260159, -0.41371091056532977),
+            (-0.6813683118815175, -0.6017581314460532, -0.6728885546686518, -0.6070597245837497),
+            (-0.6728885546686518, -0.6070597245837497, -0.6593172281079316, -0.6123058829208193),
+            (-0.5936208792878392, -0.4505812965914668, -0.6157037298357556, -0.4771541914195422),
+            (-0.2216958508504546, -0.334283618647922, -0.24308973927036182, -0.32668305929193253),
+            (-0.4696238754750366, -0.1270344633340103, -0.4686036674927001, -0.14801948128667994),
+            (-0.3806505210061373, -0.4175047336826109, -0.3572775355072523, -0.4141568460119809),
+            (-0.2645500364662994, -0.31897984255019274, -0.286302602828883, -0.31056809072298264),
+            (-0.47081061981255246, -0.04478012656670038, -0.4707744820193729, -0.06515249420317677),
+            (-0.6651247810674712, -0.5582432674174513, -0.680949391107315, -0.5966933623135511),
+            (-0.0161213795529054, -0.4880321497374544, 0.002060798504150089, -0.5006093419972141),
+            (-0.24308973927036182, -0.32668305929193253, -0.2645500364662994, -0.31897984255019274),
+            (-0.41520775610439387, -0.1412510872117076, -0.41504988870297976, -0.11757314490241758),
+            (-0.47373746064087613, -0.3293036529474645, -0.4816106111353454, -0.3689679452214929),
+            (-0.5729718463300055, -0.42381893321856573, -0.5936208792878392, -0.4505812965914668),
+            (-0.41464895657376694, -0.1642876498451215, -0.41520775610439387, -0.1412510872117076),
+            (-0.4665535435095609, -0.2699396126551063, -0.46774265063145637, -0.29009310990929005),
+            (-0.5411896889195169, -0.3899172626141476, -0.5729718463300055, -0.42381893321856573),
+            (0.11203666675995408, -0.5811011295014132, 0.13017081048522836, -0.5967193687780689),
+            (-0.41335416516086515, -0.18603659475260398, -0.41464895657376694, -0.1642876498451215),
+            (-0.4570985216053658, 0.19440962615505925, -0.46569054719902836, 0.18773399715874903),
+            (-0.41504988870297976, -0.11757314490241758, -0.4144918814511539, -0.10161473599788172),
+            (-0.4729858839549733, -0.022454657586138828, -0.47081061981255246, -0.04478012656670038),
+            (-0.5249032506668385, -0.5958127947947276, -0.5260780107743245, -0.5718154060155527),
+            (-0.4034750282015578, -0.022475609100904563, -0.3977057750658458, -0.0032214206354340517),
+            (0.19083982561644525, -0.6637473084647718, 0.20226365851310674, -0.6846803242196211),
+            (-0.4675834595103637, -0.16900449923934957, -0.4657554851247098, -0.20984020867131414),
+            (-0.03801524370704713, -0.41484927112226533, -0.05781013980048809, -0.40429496814440585),
+            (-0.017736092407881012, -0.42434050224716185, -0.03801524370704713, -0.41484927112226533),
+            (-0.46774265063145637, -0.29009310990929005, -0.47373746064087613, -0.3293036529474645),
+            (-0.6391912000484699, -0.5050489813386541, -0.6521579905579705, -0.5316461243780527),
+            (-0.11166489678152502, -0.4360283409788689, -0.0895957530837019, -0.44428458585150865),
+            (-0.6521579905579705, -0.5316461243780527, -0.6651247810674712, -0.5582432674174513),
+            (0.1955046602229735, -0.5291188650742192, 0.1861090796883922, -0.5174664567563473),
+            (-0.286302602828883, -0.31056809072298264, -0.3076345083333101, -0.30100015703275207),
+            (-0.44144268286725835, -0.4203106774130737, -0.41955750459725477, -0.4193005376701071),
+            (-0.4211573944690144, 0.17539366518993035, -0.4355862891559456, 0.1948384798404421),
+            (-0.4700289234674924, 0.17901929189462873, -0.46973828194893663, 0.1706779845607383),
+            (0.0032316302496997176, -0.4326096213674441, -0.017736092407881012, -0.42434050224716185),
+            (-0.2067334219080097, -0.4216304095541049, -0.18609161292737264, -0.4233265783912149),
+            (-0.3075257653260159, -0.41371091056532977, -0.2861103069413924, -0.4147620519400792),
+            (-0.470181109850615, -0.10627966258683175, -0.4696238754750366, -0.1270344633340103),
+            (-0.48217868784893253, -0.36437920281231617, -0.5160502560146472, -0.377233994738797),
+            (0.024883902013137518, -0.43982973010174403, 0.0032316302496997176, -0.4326096213674441),
+            (0.046878692420155084, -0.44570412033548357, 0.024883902013137518, -0.43982973010174403),
+            (-0.3688556838316479, 0.09910349195623486, -0.3723910994574661, 0.11471830730512728),
+            (0.16300093197493193, -0.6274493180659714, 0.17941599271978373, -0.6428142927099226),
+            (-0.5286986028341295, -0.554414218955906, -0.5337526332143512, -0.5328043815817746),
+            (-0.44618506510457295, 0.19968438231391494, -0.4570985216053658, 0.19440962615505925),
+            (-0.3437932093505994, -0.27736914648831923, -0.35766969257583126, -0.2622211336259962),
+            (-0.4144918814511539, -0.10161473599788172, -0.4139338741993281, -0.08565632709334586),
+            (-0.1412541051548321, -0.365237236738708, -0.16210403681725838, -0.3567479542691109),
+            (-0.034071936866852295, -0.47585252207199186, -0.0161213795529054, -0.4880321497374544),
+            (-0.4816106111353454, -0.3689679452214929, -0.48217868784893253, -0.36437920281231617),
+            (-0.3260949955692086, -0.29076702463307125, -0.3437932093505994, -0.27736914648831923),
+            (-0.13414458321676587, -0.4287059363946731, -0.11166489678152502, -0.4360283409788689),
+            (-0.1584717119703863, -0.4255858131084752, -0.13414458321676587, -0.4287059363946731),
+            (-0.1198458174080713, -0.37438527929729815, -0.1412541051548321, -0.365237236738708),
+            (-0.5320184663065516, -0.6185394867087592, -0.5249032506668385, -0.5958127947947276),
+            (-0.0984999762423669, -0.38368626095948605, -0.1198458174080713, -0.37438527929729815),
+            (-0.07771803688489146, -0.3933409414760071, -0.0984999762423669, -0.38368626095948605),
+            (0.2936012072515186, -0.7123593842666861, 0.31262767307167527, -0.701700322502138),
+            (-0.3076345083333101, -0.30100015703275207, -0.3260949955692086, -0.29076702463307125),
+            (0.13017081048522836, -0.5967193687780689, 0.14658587123008016, -0.6120843434220201),
+            (-0.40010401280169605, -0.418402635676359, -0.3806505210061373, -0.4175047336826109),
+            (-0.6593172281079316, -0.6123058829208193, -0.6466323623696394, -0.6166524259917842),
+            (-0.35766969257583126, -0.2622211336259962, -0.36692068139265244, -0.25212245838444747),
+            (0.23007183499722766, -0.7273516745702162, 0.23842356977514156, -0.7333880238589879),
+            (-0.6335839722350747, -0.6207889283512125, -0.62053558210051, -0.6249254307106407),
+            (-0.3977057750658458, -0.0032214206354340517, -0.38616726879442187, 0.03528695629550697),
+            (-0.3852255948730497, 0.145598969151568, -0.3976236795806331, 0.14986596926258441),
+            (-0.3773925759158893, 0.13037379008334773, -0.3852255948730497, 0.145598969151568),
+            (-0.18184955513318102, -0.3490585462447369, -0.19464509622829487, -0.34419889904356205),
+            (-0.18609161292737264, -0.4233265783912149, -0.17228166244887946, -0.42445619574984506),
+            (-0.6063014584137812, -0.6282041927562753, -0.5879988173526771, -0.6256813553887958),
+            (-0.3723910994574661, 0.11471830730512728, -0.3773925759158893, 0.13037379008334773),
+            (-0.05781013980048809, -0.40429496814440585, -0.07771803688489146, -0.3933409414760071),
+            (-0.36692068139265244, -0.25212245838444747, -0.3761716702094736, -0.24202378314289874),
+            (-0.3976236795806331, 0.14986596926258441, -0.4116221590434257, 0.1478384912443763),
+            (0.11213305385812024, -0.46130844402741567, 0.08902207477077065, -0.45568424961549087),
+            (-0.3721007547229959, 0.08427658824069208, -0.3688556838316479, 0.09910349195623486),
+            (-0.4355862891559456, 0.1948384798404421, -0.44618506510457295, 0.19968438231391494),
+            (-0.5514198528139015, -0.6333659552460247, -0.5320184663065516, -0.6185394867087592),
+            (-0.5399664490008723, -0.4808003245229039, -0.5272928553958934, -0.4665071459326373),
+            (0.1861090796883922, -0.5174664567563473, 0.17671349915381085, -0.5058140484384753),
+            (-0.5879988173526771, -0.6256813553887958, -0.5717408960650255, -0.6359840121683092),
+            (-0.4541672160586452, -0.4219394513478504, -0.44144268286725835, -0.4203106774130737),
+            (-0.3572775355072523, -0.4141568460119809, -0.34308589528022687, -0.41400526793603754),
+            (-0.3755169394077766, 0.06972968325536427, -0.3721007547229959, 0.08427658824069208),
+            (0.03879051157426073, -0.5267138402555187, 0.053084195446341076, -0.5368722314608755),
+            (0.1281586270245375, -0.46563892287769915, 0.11213305385812024, -0.46130844402741567),
+            (-0.17228166244887946, -0.42445619574984506, -0.1584717119703863, -0.4255858131084752),
+            (-0.4668917492500321, -0.4235682252826271, -0.4541672160586452, -0.4219394513478504),
+            (-0.19464509622829487, -0.34419889904356205, -0.2216958508504546, -0.334283618647922),
+            (0.002060798504150089, -0.5006093419972141, 0.013278813103165235, -0.508582395523688),
+            (-0.07501983819762571, -0.4501000291960831, -0.05789737622990654, -0.45979948820263217),
+            (-0.3780251638978805, 0.05857631691369382, -0.3755169394077766, 0.06972968325536427),
+            (0.10148562635840468, -0.5732369765264355, 0.11203666675995408, -0.5811011295014132),
+            (0.09093458595685527, -0.5653728235514577, 0.10148562635840468, -0.5732369765264355),
+            (-0.5717408960650255, -0.6359840121683092, -0.5514198528139015, -0.6333659552460247),
+            (-0.5260780107743245, -0.5718154060155527, -0.5286986028341295, -0.554414218955906),
+            (-0.5337526332143512, -0.5328043815817746, -0.5487361227326241, -0.5159983879161869),
+            (-0.5487361227326241, -0.5159983879161869, -0.5526400426058512, -0.4950935031131704),
+            (-0.41955750459725477, -0.4193005376701071, -0.40010401280169605, -0.418402635676359),
+            (-0.04598465654837942, -0.467826005137312, -0.034071936866852295, -0.47585252207199186),
+            (-0.5142959416189683, -0.44873137120549056, -0.5073435499430613, -0.4309013974307912),
+            (-0.6466323623696394, -0.6166524259917842, -0.6335839722350747, -0.6207889283512125),
+            (0.08038354555530587, -0.5575086705764798, 0.09093458595685527, -0.5653728235514577),
+            (-0.5073435499430613, -0.4309013974307912, -0.4923408156328058, -0.4268257731521805),
+            (-0.41218302486573943, -0.06374338759595996, -0.40924428133726976, -0.04172979756637507),
+            (-0.4923408156328058, -0.4268257731521805, -0.47961628244141896, -0.42519699921740384),
+            (-0.24034747019318276, -0.4187846558052146, -0.22354044605059623, -0.42020753267965977),
+            (-0.5526400426058512, -0.4950935031131704, -0.5399664490008723, -0.4808003245229039),
+            (-0.47961628244141896, -0.42519699921740384, -0.4668917492500321, -0.4235682252826271),
+            (-0.0895957530837019, -0.44428458585150865, -0.07501983819762571, -0.4501000291960831),
+            (0.013278813103165235, -0.508582395523688, 0.024496827702180382, -0.5165554490501619),
+            (-0.05789737622990654, -0.45979948820263217, -0.04598465654837942, -0.467826005137312),
+            (0.024496827702180382, -0.5165554490501619, 0.03879051157426073, -0.5267138402555187),
+            (0.053084195446341076, -0.5368722314608755, 0.06983250515375647, -0.549644517601502),
+            (0.06983250515375647, -0.549644517601502, 0.08038354555530587, -0.5575086705764798),
+            (0.14658587123008016, -0.6120843434220201, 0.16300093197493193, -0.6274493180659714),
+            (0.17941599271978373, -0.6428142927099226, 0.19083982561644525, -0.6637473084647718),
+            (0.20226365851310674, -0.6846803242196211, 0.21199187936621028, -0.7029978247505329),
+            (0.22172010021931382, -0.7213153252814447, 0.23007183499722766, -0.7273516745702162),
+            (0.23842356977514156, -0.7333880238589879, 0.2936012072515186, -0.7123593842666861),
+            (-0.34308589528022687, -0.41400526793603754, -0.32889425505320147, -0.41385368986009413),
+            (-0.22354044605059623, -0.42020753267965977, -0.2067334219080097, -0.4216304095541049),
+            (0.31262767307167527, -0.701700322502138, 0.33874283921776444, -0.6826619086000286),
+            (0.33874283921776444, -0.6826619086000286, 0.325059546813487, -0.6626214716155039),
+            (0.325059546813487, -0.6626214716155039, 0.315169173441171, -0.6454515955044794),
+            (0.315169173441171, -0.6454515955044794, 0.3003727766083387, -0.6345282469248503),
+            (0.3003727766083387, -0.6345282469248503, 0.2976935684117561, -0.6313925527892423),
+            (0.2976935684117561, -0.6313925527892423, 0.28541312441712036, -0.6253454922976671),
+            (0.28541312441712036, -0.6253454922976671, 0.2620109524449105, -0.6484009130236885),
+            (0.2620109524449105, -0.6484009130236885, 0.23682154680392586, -0.6682251689609808),
+            (0.23682154680392586, -0.6682251689609808, 0.20922517075795577, -0.6876898723338571),
+            (0.20922517075795577, -0.6876898723338571, 0.228514036279674, -0.667415501135673),
+            (0.228514036279674, -0.667415501135673, 0.20951122920088036, -0.547612806685765),
+            (-0.528619972467082, -0.3835756286764723, -0.5411896889195169, -0.3899172626141476),
+            (-0.6140003507704554, -0.6246942815266476, -0.6136445854117595, -0.605720817434945),
+            (-0.6125772893356716, -0.548800425159837, -0.6296632540269974, -0.5662821168247797),
+            (-0.6131922694416673, -0.5825689709585734, -0.6096256018457722, -0.617508608394428),
+            (-0.6096256018457722, -0.617508608394428, -0.6118129763081138, -0.6211014449605379),
+            (-0.6118129763081138, -0.6211014449605379, -0.6140003507704554, -0.6246942815266476),
+            (-0.6296632540269974, -0.5662821168247797, -0.6131922694416673, -0.5825689709585734),
+            (-0.6132888200530635, -0.5867473533432422, -0.6125772893356716, -0.548800425159837),
+            (-0.6136445854117595, -0.605720817434945, -0.6132888200530635, -0.5867473533432422),
+        ];
+        let lines2 = vec![
+            (-0.47455814685964076, 0.02418430708367739, -0.47418182263387343, 0.0005754319767275209),
+            (-0.40333055149870034, -0.20846214407358032, -0.41335416516086515, -0.18603659475260398),
+            (-0.47425524623024257, 0.04798895955789513, -0.47455814685964076, 0.02418430708367739),
+            (-0.3761716702094736, -0.24202378314289874, -0.389751110854087, -0.22524296360823953),
+            (0.21199187936621028, -0.7029978247505329, 0.22172010021931382, -0.7213153252814447),
+            (-0.47220622087841996, 0.09507574714654095, -0.4734122938894088, 0.0716912030469585),
+            (-0.4707744820193729, -0.06515249420317677, -0.4707383442261934, -0.08552486183965317),
+            (0.14740213338726227, -0.4770310753020222, 0.1281586270245375, -0.46563892287769915),
+            (0.16235972288004358, -0.4913814233658803, 0.14740213338726227, -0.4770310753020222),
+            (-0.5160502560146472, -0.377233994738797, -0.528619972467082, -0.3835756286764723),
+            (-0.4708186128577246, 0.11794089659427533, -0.47220622087841996, 0.09507574714654095),
+            (-0.46464727363375113, 0.18340703586753995, -0.46747181270498417, 0.16208848548752697),
+            (-0.62053558210051, -0.6249254307106407, -0.6063014584137812, -0.6282041927562753),
+            (-0.4707383442261934, -0.08552486183965317, -0.470181109850615, -0.10627966258683175),
+            (0.08902207477077065, -0.45568424961549087, 0.06830839284238253, -0.45052075765717214),
+            (-0.47418182263387343, 0.0005754319767275209, -0.4729858839549733, -0.022454657586138828),
+            (-0.4734122938894088, 0.0716912030469585, -0.47425524623024257, 0.04798895955789513),
+            (-0.680949391107315, -0.5966933623135511, -0.6813683118815175, -0.6017581314460532),
+            (-0.4686036674927001, -0.14801948128667994, -0.4675834595103637, -0.16900449923934957),
+            (-0.4693568344409386, 0.14026965469213276, -0.4708186128577246, 0.11794089659427533),
+            (-0.389751110854087, -0.22524296360823953, -0.40333055149870034, -0.20846214407358032),
+            (-0.38616726879442187, 0.03528695629550697, -0.3780251638978805, 0.05857631691369382),
+            (0.17671349915381085, -0.5058140484384753, 0.16235972288004358, -0.4913814233658803),
+            (-0.46747181270498417, 0.16208848548752697, -0.4693568344409386, 0.14026965469213276),
+            (-0.37089409252194183, 0.24967090169878964, -0.385520336262716, 0.264497024337542),
+            (-0.26495766035541, -0.4166341213489104, -0.24034747019318276, -0.4187846558052146),
+            (-0.2861103069413924, -0.4147620519400792, -0.26495766035541, -0.4166341213489104),
+            (-0.16210403681725838, -0.3567479542691109, -0.18184955513318102, -0.3490585462447369),
+            (-0.4139338741993281, -0.08565632709334586, -0.41218302486573943, -0.06374338759595996),
+            (-0.40924428133726976, -0.04172979756637507, -0.4034750282015578, -0.022475609100904563),
+            (-0.5272928553958934, -0.4665071459326373, -0.5142959416189683, -0.44873137120549056),
+            (0.20951122920088036, -0.547612806685765, 0.1955046602229735, -0.5291188650742192),
+            (-0.46555996075618766, -0.22981316203611835, -0.4653644363876655, -0.24978611540092255),
+            (-0.4653644363876655, -0.24978611540092255, -0.4665535435095609, -0.2699396126551063),
+            (0.06830839284238253, -0.45052075765717214, 0.046878692420155084, -0.44570412033548357),
+            (-0.4657554851247098, -0.20984020867131414, -0.46555996075618766, -0.22981316203611835),
+            (-0.6157037298357556, -0.4771541914195422, -0.6391912000484699, -0.5050489813386541),
+            (-0.4504175222534719, 0.22592115107915403, -0.4598469068371214, 0.20447739450823205),
+            (-0.32889425505320147, -0.41385368986009413, -0.3075257653260159, -0.41371091056532977),
+            (-0.6813683118815175, -0.6017581314460532, -0.6728885546686518, -0.6070597245837497),
+            (-0.6728885546686518, -0.6070597245837497, -0.6593172281079316, -0.6123058829208193),
+            (-0.5936208792878392, -0.4505812965914668, -0.6157037298357556, -0.4771541914195422),
+            (-0.2216958508504546, -0.334283618647922, -0.24308973927036182, -0.32668305929193253),
+            (-0.4696238754750366, -0.1270344633340103, -0.4686036674927001, -0.14801948128667994),
+            (-0.3806505210061373, -0.4175047336826109, -0.3572775355072523, -0.4141568460119809),
+            (-0.2645500364662994, -0.31897984255019274, -0.286302602828883, -0.31056809072298264),
+            (-0.47081061981255246, -0.04478012656670038, -0.4707744820193729, -0.06515249420317677),
+            (-0.6651247810674712, -0.5582432674174513, -0.680949391107315, -0.5966933623135511),
+            (-0.0161213795529054, -0.4880321497374544, 0.002060798504150089, -0.5006093419972141),
+            (-0.24308973927036182, -0.32668305929193253, -0.2645500364662994, -0.31897984255019274),
+            (-0.41520775610439387, -0.1412510872117076, -0.41504988870297976, -0.11757314490241758),
+            (-0.47373746064087613, -0.3293036529474645, -0.4816106111353454, -0.3689679452214929),
+            (-0.5729718463300055, -0.42381893321856573, -0.5936208792878392, -0.4505812965914668),
+            (-0.41464895657376694, -0.1642876498451215, -0.41520775610439387, -0.1412510872117076),
+            (-0.4665535435095609, -0.2699396126551063, -0.46774265063145637, -0.29009310990929005),
+            (-0.5411896889195169, -0.3899172626141476, -0.5729718463300055, -0.42381893321856573),
+            (0.11203666675995408, -0.5811011295014132, 0.13017081048522836, -0.5967193687780689),
+            (-0.41335416516086515, -0.18603659475260398, -0.41464895657376694, -0.1642876498451215),
+            (-0.43673448834462386, 0.2453258313822659, -0.4504175222534719, 0.22592115107915403),
+            (-0.41504988870297976, -0.11757314490241758, -0.4144918814511539, -0.10161473599788172),
+            (-0.4729858839549733, -0.022454657586138828, -0.47081061981255246, -0.04478012656670038),
+            (-0.5249032506668385, -0.5958127947947276, -0.5260780107743245, -0.5718154060155527),
+            (-0.4034750282015578, -0.022475609100904563, -0.3977057750658458, -0.0032214206354340517),
+            (0.19083982561644525, -0.6637473084647718, 0.20226365851310674, -0.6846803242196211),
+            (-0.4675834595103637, -0.16900449923934957, -0.4657554851247098, -0.20984020867131414),
+            (-0.03801524370704713, -0.41484927112226533, -0.05781013980048809, -0.40429496814440585),
+            (-0.017736092407881012, -0.42434050224716185, -0.03801524370704713, -0.41484927112226533),
+            (-0.46774265063145637, -0.29009310990929005, -0.47373746064087613, -0.3293036529474645),
+            (-0.6391912000484699, -0.5050489813386541, -0.6521579905579705, -0.5316461243780527),
+            (-0.11166489678152502, -0.4360283409788689, -0.0895957530837019, -0.44428458585150865),
+            (-0.6521579905579705, -0.5316461243780527, -0.6651247810674712, -0.5582432674174513),
+            (0.1955046602229735, -0.5291188650742192, 0.1861090796883922, -0.5174664567563473),
+            (-0.286302602828883, -0.31056809072298264, -0.3076345083333101, -0.30100015703275207),
+            (-0.44144268286725835, -0.4203106774130737, -0.41955750459725477, -0.4193005376701071),
+            (-0.385520336262716, 0.264497024337542, -0.4050402392648327, 0.2712127876812521),
+            (-0.4598469068371214, 0.20447739450823205, -0.46464727363375113, 0.18340703586753995),
+            (0.0032316302496997176, -0.4326096213674441, -0.017736092407881012, -0.42434050224716185),
+            (-0.2067334219080097, -0.4216304095541049, -0.18609161292737264, -0.4233265783912149),
+            (-0.3075257653260159, -0.41371091056532977, -0.2861103069413924, -0.4147620519400792),
+            (-0.470181109850615, -0.10627966258683175, -0.4696238754750366, -0.1270344633340103),
+            (-0.48217868784893253, -0.36437920281231617, -0.5160502560146472, -0.377233994738797),
+            (0.024883902013137518, -0.43982973010174403, 0.0032316302496997176, -0.4326096213674441),
+            (0.046878692420155084, -0.44570412033548357, 0.024883902013137518, -0.43982973010174403),
+            (-0.35358265888609147, 0.13729064587663986, -0.3520270661967242, 0.16563451253233394),
+            (0.16300093197493193, -0.6274493180659714, 0.17941599271978373, -0.6428142927099226),
+            (-0.5286986028341295, -0.554414218955906, -0.5337526332143512, -0.5328043815817746),
+            (-0.4207300235286455, 0.26332963884792326, -0.43673448834462386, 0.2453258313822659),
+            (-0.3437932093505994, -0.27736914648831923, -0.35766969257583126, -0.2622211336259962),
+            (-0.4144918814511539, -0.10161473599788172, -0.4139338741993281, -0.08565632709334586),
+            (-0.1412541051548321, -0.365237236738708, -0.16210403681725838, -0.3567479542691109),
+            (-0.034071936866852295, -0.47585252207199186, -0.0161213795529054, -0.4880321497374544),
+            (-0.4816106111353454, -0.3689679452214929, -0.48217868784893253, -0.36437920281231617),
+            (-0.3260949955692086, -0.29076702463307125, -0.3437932093505994, -0.27736914648831923),
+            (-0.13414458321676587, -0.4287059363946731, -0.11166489678152502, -0.4360283409788689),
+            (-0.1584717119703863, -0.4255858131084752, -0.13414458321676587, -0.4287059363946731),
+            (-0.1198458174080713, -0.37438527929729815, -0.1412541051548321, -0.365237236738708),
+            (-0.5320184663065516, -0.6185394867087592, -0.5249032506668385, -0.5958127947947276),
+            (-0.0984999762423669, -0.38368626095948605, -0.1198458174080713, -0.37438527929729815),
+            (-0.07771803688489146, -0.3933409414760071, -0.0984999762423669, -0.38368626095948605),
+            (0.2936012072515186, -0.7123593842666861, 0.31262767307167527, -0.701700322502138),
+            (-0.3076345083333101, -0.30100015703275207, -0.3260949955692086, -0.29076702463307125),
+            (0.13017081048522836, -0.5967193687780689, 0.14658587123008016, -0.6120843434220201),
+            (-0.40010401280169605, -0.418402635676359, -0.3806505210061373, -0.4175047336826109),
+            (-0.6593172281079316, -0.6123058829208193, -0.6466323623696394, -0.6166524259917842),
+            (-0.35766969257583126, -0.2622211336259962, -0.36692068139265244, -0.25212245838444747),
+            (0.23007183499722766, -0.7273516745702162, 0.23842356977514156, -0.7333880238589879),
+            (-0.6335839722350747, -0.6207889283512125, -0.62053558210051, -0.6249254307106407),
+            (-0.3977057750658458, -0.0032214206354340517, -0.38616726879442187, 0.03528695629550697),
+            (-0.35467954498193677, 0.22197327699237798, -0.3619866213743347, 0.23896932841019608),
+            (-0.3519375343399619, 0.19401904661735606, -0.35467954498193677, 0.22197327699237798),
+            (-0.18184955513318102, -0.3490585462447369, -0.19464509622829487, -0.34419889904356205),
+            (-0.18609161292737264, -0.4233265783912149, -0.17228166244887946, -0.42445619574984506),
+            (-0.6063014584137812, -0.6282041927562753, -0.5879988173526771, -0.6256813553887958),
+            (-0.3520270661967242, 0.16563451253233394, -0.3519375343399619, 0.19401904661735606),
+            (-0.05781013980048809, -0.40429496814440585, -0.07771803688489146, -0.3933409414760071),
+            (-0.36692068139265244, -0.25212245838444747, -0.3761716702094736, -0.24202378314289874),
+            (-0.3619866213743347, 0.23896932841019608, -0.37089409252194183, 0.24967090169878964),
+            (0.11213305385812024, -0.46130844402741567, 0.08902207477077065, -0.45568424961549087),
+            (-0.3619187380926249, 0.10973469085429541, -0.35358265888609147, 0.13729064587663986),
+            (-0.4050402392648327, 0.2712127876812521, -0.4207300235286455, 0.26332963884792326),
+            (-0.5514198528139015, -0.6333659552460247, -0.5320184663065516, -0.6185394867087592),
+            (-0.5399664490008723, -0.4808003245229039, -0.5272928553958934, -0.4665071459326373),
+            (0.1861090796883922, -0.5174664567563473, 0.17671349915381085, -0.5058140484384753),
+            (-0.5879988173526771, -0.6256813553887958, -0.5717408960650255, -0.6359840121683092),
+            (-0.4541672160586452, -0.4219394513478504, -0.44144268286725835, -0.4203106774130737),
+            (-0.3572775355072523, -0.4141568460119809, -0.34308589528022687, -0.41400526793603754),
+            (-0.3704259310925911, 0.08245873456216593, -0.3619187380926249, 0.10973469085429541),
+            (0.03879051157426073, -0.5267138402555187, 0.053084195446341076, -0.5368722314608755),
+            (0.1281586270245375, -0.46563892287769915, 0.11213305385812024, -0.46130844402741567),
+            (-0.17228166244887946, -0.42445619574984506, -0.1584717119703863, -0.4255858131084752),
+            (-0.4668917492500321, -0.4235682252826271, -0.4541672160586452, -0.4219394513478504),
+            (-0.19464509622829487, -0.34419889904356205, -0.2216958508504546, -0.334283618647922),
+            (0.002060798504150089, -0.5006093419972141, 0.013278813103165235, -0.508582395523688),
+            (-0.07501983819762571, -0.4501000291960831, -0.05789737622990654, -0.45979948820263217),
+            (-0.3780251638978805, 0.05857631691369382, -0.3704259310925911, 0.08245873456216593),
+            (0.10148562635840468, -0.5732369765264355, 0.11203666675995408, -0.5811011295014132),
+            (0.09093458595685527, -0.5653728235514577, 0.10148562635840468, -0.5732369765264355),
+            (-0.5717408960650255, -0.6359840121683092, -0.5514198528139015, -0.6333659552460247),
+            (-0.5260780107743245, -0.5718154060155527, -0.5286986028341295, -0.554414218955906),
+            (-0.5337526332143512, -0.5328043815817746, -0.5487361227326241, -0.5159983879161869),
+            (-0.5487361227326241, -0.5159983879161869, -0.5526400426058512, -0.4950935031131704),
+            (-0.41955750459725477, -0.4193005376701071, -0.40010401280169605, -0.418402635676359),
+            (-0.04598465654837942, -0.467826005137312, -0.034071936866852295, -0.47585252207199186),
+            (-0.5142959416189683, -0.44873137120549056, -0.5073435499430613, -0.4309013974307912),
+            (-0.6466323623696394, -0.6166524259917842, -0.6335839722350747, -0.6207889283512125),
+            (0.08038354555530587, -0.5575086705764798, 0.09093458595685527, -0.5653728235514577),
+            (-0.5073435499430613, -0.4309013974307912, -0.4923408156328058, -0.4268257731521805),
+            (-0.41218302486573943, -0.06374338759595996, -0.40924428133726976, -0.04172979756637507),
+            (-0.4923408156328058, -0.4268257731521805, -0.47961628244141896, -0.42519699921740384),
+            (-0.24034747019318276, -0.4187846558052146, -0.22354044605059623, -0.42020753267965977),
+            (-0.5526400426058512, -0.4950935031131704, -0.5399664490008723, -0.4808003245229039),
+            (-0.47961628244141896, -0.42519699921740384, -0.4668917492500321, -0.4235682252826271),
+            (-0.0895957530837019, -0.44428458585150865, -0.07501983819762571, -0.4501000291960831),
+            (0.013278813103165235, -0.508582395523688, 0.024496827702180382, -0.5165554490501619),
+            (-0.05789737622990654, -0.45979948820263217, -0.04598465654837942, -0.467826005137312),
+            (0.024496827702180382, -0.5165554490501619, 0.03879051157426073, -0.5267138402555187),
+            (0.053084195446341076, -0.5368722314608755, 0.06983250515375647, -0.549644517601502),
+            (0.06983250515375647, -0.549644517601502, 0.08038354555530587, -0.5575086705764798),
+            (0.14658587123008016, -0.6120843434220201, 0.16300093197493193, -0.6274493180659714),
+            (0.17941599271978373, -0.6428142927099226, 0.19083982561644525, -0.6637473084647718),
+            (0.20226365851310674, -0.6846803242196211, 0.21199187936621028, -0.7029978247505329),
+            (0.22172010021931382, -0.7213153252814447, 0.23007183499722766, -0.7273516745702162),
+            (0.23842356977514156, -0.7333880238589879, 0.2936012072515186, -0.7123593842666861),
+            (-0.34308589528022687, -0.41400526793603754, -0.32889425505320147, -0.41385368986009413),
+            (-0.22354044605059623, -0.42020753267965977, -0.2067334219080097, -0.4216304095541049),
+            (0.31262767307167527, -0.701700322502138, 0.33874283921776444, -0.6826619086000286),
+            (0.33874283921776444, -0.6826619086000286, 0.325059546813487, -0.6626214716155039),
+            (0.325059546813487, -0.6626214716155039, 0.315169173441171, -0.6454515955044794),
+            (0.315169173441171, -0.6454515955044794, 0.3003727766083387, -0.6345282469248503),
+            (0.3003727766083387, -0.6345282469248503, 0.2976935684117561, -0.6313925527892423),
+            (0.2976935684117561, -0.6313925527892423, 0.28541312441712036, -0.6253454922976671),
+            (0.28541312441712036, -0.6253454922976671, 0.2620109524449105, -0.6484009130236885),
+            (0.2620109524449105, -0.6484009130236885, 0.23682154680392586, -0.6682251689609808),
+            (0.23682154680392586, -0.6682251689609808, 0.20922517075795577, -0.6876898723338571),
+            (0.20922517075795577, -0.6876898723338571, 0.228514036279674, -0.667415501135673),
+            (0.228514036279674, -0.667415501135673, 0.20951122920088036, -0.547612806685765),
+            (-0.528619972467082, -0.3835756286764723, -0.5411896889195169, -0.3899172626141476),
+            (-0.6060001948465925, -0.6046914866159593, -0.6056444294878965, -0.5857180225242566),
+            (-0.6045771334118086, -0.5287976302491486, -0.6216630981031345, -0.5462793219140913),
+            (-0.6051921135178043, -0.5625661760478851, -0.6016254459219093, -0.5975058134837397),
+            (-0.6016254459219093, -0.5975058134837397, -0.6038128203842509, -0.6010986500498495),
+            (-0.6038128203842509, -0.6010986500498495, -0.6060001948465925, -0.6046914866159593),
+            (-0.6216630981031345, -0.5462793219140913, -0.6051921135178043, -0.5625661760478851),
+            (-0.6052886641292006, -0.5667445584325539, -0.6045771334118086, -0.5287976302491486),
+            (-0.6056444294878965, -0.5857180225242566, -0.6052886641292006, -0.5667445584325539),
+        ];
+
+        let hmmmm = lines_intersection(&lines1);
+        let hmmmm2 = lines_intersection(&lines2);
+
+        assert!(match hmmmm {
+            Some(_) => true,
+            _ => true,
+        });
+        assert!(match hmmmm2 {
+            Some(_) => false,
+            _ => true,
+        });
     }
 }

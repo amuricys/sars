@@ -4,15 +4,15 @@ use graph::{
     closest_node_to_some_point, cyclic_graph_from_coords, distance_between_points,
     effects::{changer_of_choice, smooth_change_out},
 };
-use ::{linalg_helpers};
+use linalg_helpers;
 use piston::{Button, Event, EventSettings, Events, MouseCursorEvent, PressEvent, RenderEvent};
 use renderer::consts;
 use renderer::types::{Color, Line, Renderer};
 use renderer::{junk, lines_from_thick_surface};
-use ::{stitcher, file_io};
+use {file_io, stitcher};
 
-use stitcher::types::{Stitching, Strategy};
 use simulated_annealing;
+use stitcher::types::{Stitching, Strategy};
 use types::Params;
 
 fn mk_lines(points: &Vec<(f64, f64)>, color: Color) -> Vec<Line> {
@@ -36,7 +36,7 @@ struct StateBag {
     pub initial_gm: f64,
     pub temp: f64,
     pub rng: rand::rngs::ThreadRng,
-    pub params: Params
+    pub params: Params,
 }
 
 impl StateBag {
@@ -51,7 +51,7 @@ impl StateBag {
             initial_gm: 0.0,
             temp: 0.0,
             rng: Default::default(),
-            params
+            params,
         }
     }
 }
@@ -64,7 +64,7 @@ enum State {
     SurfaceStitchingA(ThickSurface, Stitching),
     SurfaceStitchingB(ThickSurface, Stitching, (usize, usize)),
     SurfacePushing(ThickSurface, Stitching, Strategy),
-    SurfaceOptimizing(StateBag)
+    SurfaceOptimizing(StateBag),
 }
 
 fn lines_from_change_map(ts: &ThickSurface, change_maps: Vec<NodeChangeMap>) -> Vec<Line> {
@@ -186,9 +186,7 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
             all_lines.extend(lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes]));
             all_lines
         }
-        State::SurfaceOptimizing(sb) => {
-            lines_from_thick_surface(&sb.ts, &sb.s)
-        }
+        State::SurfaceOptimizing(sb) => lines_from_thick_surface(&sb.ts, &sb.s),
         _ => Vec::new(),
     }
 }
@@ -302,27 +300,25 @@ fn state_effects(s: &State, e: Event, last_mouse_pos: (f64, f64)) -> State {
             Some(piston::Button::Keyboard(piston::Key::F)) => {
                 let new_stitch_choice = strat.other();
                 State::SurfacePushing(ts.clone(), stitcher::stitch_choice(ts, new_stitch_choice), new_stitch_choice)
-            },
+            }
             Some(piston::Button::Keyboard(piston::Key::S)) => {
                 let params: Params = match std::fs::read_to_string("parameters.toml") {
                     Err(_) => panic!("No parameters.toml file found in directory"),
                     Ok(content) => file_io::toml_table_to_params(content.parse::<toml::Value>().unwrap()),
                 };
-                State::SurfaceOptimizing(
-                    StateBag {
-                        ts: ts.clone(),
-                        s: s.clone(),
-                        // Todo: Read this shit from files
-                        stitch_strat: Strategy::Greedy,
-                        initial_gm: 0.0,
-                        temp: 0.0,
-                        rng: rand::thread_rng(),
-                        params: params
-                    }
-                )
+                State::SurfaceOptimizing(StateBag {
+                    ts: ts.clone(),
+                    s: s.clone(),
+                    // Todo: Read this shit from files
+                    stitch_strat: Strategy::Greedy,
+                    initial_gm: 0.0,
+                    temp: 0.0,
+                    rng: rand::thread_rng(),
+                    params: params,
+                })
             }
-            _ => State::SurfacePushing(ts.clone(), s.clone(), strat.clone())
-        }
+            _ => State::SurfacePushing(ts.clone(), s.clone(), strat.clone()),
+        },
         State::SurfaceOptimizing(sb) => {
             let mut new_sb = sb.clone();
             let mut new_ts = new_sb.ts;

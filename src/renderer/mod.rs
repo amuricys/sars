@@ -10,16 +10,16 @@ use piston::window::WindowSettings;
 
 use graph;
 
-use piston::{Button, PressEvent, Event};
 use file_io::recorders;
+use piston::{Button, Event, PressEvent};
 use simulated_annealing;
 
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
-use stitcher::{stitch_choice, stitch_default};
-use stitcher::types::{Stitching, Strategy};
-use types::Params;
 use renderer::types::Line;
 use simulated_annealing::SimState;
+use stitcher::types::{Stitching, Strategy};
+use stitcher::{stitch_choice, stitch_default};
+use types::Params;
 
 pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<types::Line> {
     let mut lines = Vec::new();
@@ -166,15 +166,19 @@ fn maybe_imaginary_lines(state: &RenderState, e: &Event, sim_state: &SimState, p
                 };
                 let surrounding_imaginary_changes =
                     graph::effects::smooth_change_out(&sim_state.ts.layers[OUTER], imaginary_change, Smooth::Count(params.how_smooth));
-                let inner_imaginary_changes =
-                    graph::effects::changer_of_choice(&sim_state.ts.layers[INNER], &sim_state.ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, &sim_state.stitching);
+                let inner_imaginary_changes = graph::effects::changer_of_choice(
+                    &sim_state.ts.layers[INNER],
+                    &sim_state.ts.layers[OUTER],
+                    &surrounding_imaginary_changes,
+                    0.0,
+                    &sim_state.stitching,
+                );
                 lines_from_change_map(&sim_state.ts, vec![surrounding_imaginary_changes, inner_imaginary_changes])
             }
             None => imaginary_lines,
         }
     }
 }
-
 
 pub fn setup_optimization_and_loop<F>(
     sim_state: &mut SimState,
@@ -207,9 +211,7 @@ pub fn setup_optimization_and_loop<F>(
 
         render_state = next_state(e.press_args(), render_state);
         match render_state.step_type {
-            StepType::Automatic => {
-                changeset = simulated_annealing::step(sim_state, params, rng)
-            }
+            StepType::Automatic => changeset = simulated_annealing::step(sim_state, params, rng),
             StepType::Reset => {
                 changeset = vec![];
                 *sim_state = simulated_annealing::SimState::initial_state(params)

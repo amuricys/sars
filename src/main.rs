@@ -1,10 +1,10 @@
+mod file_io;
 mod graph;
 mod linalg_helpers;
 mod renderer;
 mod simulated_annealing;
 mod stitcher;
 mod types;
-mod file_io;
 
 extern crate float_cmp;
 extern crate glutin_window;
@@ -19,7 +19,6 @@ extern crate vec1;
 use renderer::draw_mode::draw_mode_rendering;
 use std::env;
 use stitcher::stitch_choice;
-
 
 fn real_main() {
     let params: types::Params = match std::fs::read_to_string("parameters.toml") {

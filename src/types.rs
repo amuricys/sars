@@ -8,10 +8,11 @@ pub struct Params {
     pub compression_factor: f64,
     pub softness_factor: f64, // <- how much should closeness of nodes in different surfaces impact pushes?
     pub how_smooth: usize,
+    pub max_merge_steps_away: usize,
     pub node_addition_threshold: f64,
     pub node_deletion_threshold: f64,
     pub low_high: (f64, f64),
     pub recorders: Vec<String>,
     pub temperature_param: f64,
-    pub output_file_path: String
+    pub output_file_path: String,
 }

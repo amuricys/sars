@@ -15,6 +15,6 @@ pub fn stitch_choice(ts: &ThickSurface, strategy: types::Strategy) -> types::Sti
     }
 }
 
-pub fn stitch_default (ts: &ThickSurface) -> types::Stitching {
+pub fn stitch_default(ts: &ThickSurface) -> types::Stitching {
     stitch_choice(ts, types::Strategy::Dijkstra)
 }

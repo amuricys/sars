@@ -5,8 +5,8 @@ use std::fs::File;
 use std::io::Write;
 
 use graph::types::{ThickSurface, INNER, OUTER};
-use types::Params;
 use simulated_annealing::SimState;
+use types::Params;
 
 type RecorderFn = for<'r, 's> fn(&'r ThickSurface, &'s Params) -> f64;
 
@@ -28,7 +28,10 @@ impl RecordingState {
 
             return match File::create(&p.output_file_path) {
                 Ok(mut f) => match f.write_all(header.as_bytes()) {
-                    Ok(_) => Some(RecordingState{f, last_recorded: Vec::new()}),
+                    Ok(_) => Some(RecordingState {
+                        f,
+                        last_recorded: Vec::new(),
+                    }),
                     Err(e) => panic!("Couldn't write to file: {:?}", e),
                 },
                 Err(_) => None,
@@ -62,8 +65,12 @@ fn gray_matter_area(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::gray_matter_area(ts)
 }
 
-fn num_inner_points(ts: &ThickSurface, _p: &Params) -> f64 { ts.layers[INNER].nodes.len() as f64 }
-fn num_outer_points(ts: &ThickSurface, _p: &Params) -> f64 { ts.layers[OUTER].nodes.len() as f64 }
+fn num_inner_points(ts: &ThickSurface, _p: &Params) -> f64 {
+    ts.layers[INNER].nodes.len() as f64
+}
+fn num_outer_points(ts: &ThickSurface, _p: &Params) -> f64 {
+    ts.layers[OUTER].nodes.len() as f64
+}
 
 fn name_to_fn(n: &str) -> Option<RecorderFn> {
     match n {
@@ -94,7 +101,9 @@ pub fn record(sim_state: &SimState, p: &Params, recording_state: &mut RecordingS
     if line.len() > 0 {
         line.remove(0);
     }; // remove leading comma
-    if true /* new_vals != recording_state.last_recorded */ {
+    if true
+    /* new_vals != recording_state.last_recorded */
+    {
         line.insert_str(0, &*format!("{},", sim_state.timestep));
         match recording_state.f.write_all(line.as_bytes()) {
             Ok(_) => {}

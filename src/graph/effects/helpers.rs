@@ -1,26 +1,30 @@
-use graph::types::{NodeChangeMap, Graph, Node, NodeChange};
-use graph::{closest_node_to_some_point, distance_between_points, distance_between_nodes};
+use graph::types::{Graph, Node, NodeChange, NodeChangeMap};
+use graph::{closest_node_to_some_point, distance_between_nodes, distance_between_points};
 
-pub(crate) fn most_prev_next<'a>(ncm: &NodeChangeMap, g: &'a Graph) -> (&'a Node, &'a Node){
-    let (_, most_next) = ncm.unwrap().iter().find(|(_, v)| {
-        match ncm.get(&g.next(v.id).id) {
+pub(crate) fn most_prev_next<'a>(ncm: &NodeChangeMap, g: &'a Graph) -> (&'a Node, &'a Node) {
+    let (_, most_next) = ncm
+        .unwrap()
+        .iter()
+        .find(|(_, v)| match ncm.get(&g.next(v.id).id) {
             None => true,
-            _ => false
-        }
-    }).unwrap();
-    let (_, most_prev) = ncm.unwrap().iter().find(|(_, v)| {
-        match ncm.get(&g.prev(v.id).id) {
+            _ => false,
+        })
+        .unwrap();
+    let (_, most_prev) = ncm
+        .unwrap()
+        .iter()
+        .find(|(_, v)| match ncm.get(&g.prev(v.id).id) {
             None => true,
-            _ => false
-        }
-    }).unwrap();
+            _ => false,
+        })
+        .unwrap();
     (&g.nodes[most_prev.id], &g.nodes[most_next.id])
 }
 
 pub(crate) fn closest_internal_nodes<'a>(most_outer_prev: &Node, most_outer_next: &Node, ig: &'a Graph) -> (&'a Node, &'a Node) {
     (
         closest_node_to_some_point(ig, most_outer_prev.x, most_outer_prev.y),
-        closest_node_to_some_point(ig, most_outer_next.x, most_outer_next.y)
+        closest_node_to_some_point(ig, most_outer_next.x, most_outer_next.y),
     )
 }
 
@@ -57,7 +61,7 @@ pub(crate) fn avg_change_dumb(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
         cur_x: tgt.x,
         cur_y: tgt.y,
         delta_x: 0.0,
-        delta_y: 0.0
+        delta_y: 0.0,
     };
     for i in v {
         nc.delta_x += i.delta_x;
@@ -69,29 +73,41 @@ pub(crate) fn avg_change_dumb(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
 }
 
 #[derive(Copy, Clone)]
-enum PrePost { Pre, Post }
+enum PrePost {
+    Pre,
+    Post,
+}
 fn avg_change_essence(tgt: &Node, v: &Vec<&NodeChange>, pp: PrePost) -> NodeChange {
     /* Sum Of all Distances from the changed nodes to the target node */
-    let sod = v.iter().fold(0.0, |acc, x|
+    let sod = v.iter().fold(0.0, |acc, x| {
         acc + distance_between_points(
-            x.cur_x + match pp { PrePost::Pre => 0.0, PrePost::Post => x.delta_x },
-            x.cur_y  + match pp { PrePost::Pre => 0.0, PrePost::Post => x.delta_y },
-            tgt.x, tgt.y
+            x.cur_x
+                + match pp {
+                    PrePost::Pre => 0.0,
+                    PrePost::Post => x.delta_x,
+                },
+            x.cur_y
+                + match pp {
+                    PrePost::Pre => 0.0,
+                    PrePost::Post => x.delta_y,
+                },
+            tgt.x,
+            tgt.y,
         )
-    );
+    });
 
     let mut nc = NodeChange {
         id: tgt.id,
         cur_x: tgt.x,
         cur_y: tgt.y,
         delta_x: 0.0,
-        delta_y: 0.0
+        delta_y: 0.0,
     };
     let mut running_total_of_something = 0.0;
     for i in v {
         running_total_of_something += (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));
         nc.delta_x += i.delta_x * (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));
-        nc.delta_y += i.delta_y * (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));;
+        nc.delta_y += i.delta_y * (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));
     }
     nc.delta_x /= running_total_of_something;
     nc.delta_y /= running_total_of_something;
@@ -115,7 +131,7 @@ This fn could have a few versions:
 3. "    "     POST-change
 4. "    "     "      "     POST-change
 */
-pub fn n_closest_outers<'a>(n: usize, inner_node: &Node, outer_changes: &'a NodeChangeMap, g: &Graph) -> Vec<&'a NodeChange>{
+pub fn n_closest_outers<'a>(n: usize, inner_node: &Node, outer_changes: &'a NodeChangeMap, g: &Graph) -> Vec<&'a NodeChange> {
     let mut ret = Vec::new();
     for (_, v) in outer_changes {
         ret.push(v);

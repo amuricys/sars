@@ -108,6 +108,14 @@ impl Node {
         &g.nodes[self.next_id]
     }
 
+    pub(crate) fn next_by<'a>(&'a self, g: &'a Graph, dist: usize) -> &'a Node {
+        let mut n = self;
+        for i in 0..dist {
+            n = n.next(g);
+        }
+        n
+    }
+
     pub(crate) fn prev<'a>(&self, g: &'a Graph) -> &'a Node {
         &g.nodes[self.prev_id]
     }
@@ -120,6 +128,16 @@ impl Node {
 #[derive(Clone, Copy, Debug)]
 pub struct NodeChange {
     pub id: NodeIndex,
+    pub cur_x: f64,
+    pub cur_y: f64,
+    pub delta_x: f64,
+    pub delta_y: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct NodeChange2 {
+    pub id: NodeIndex,
+    pub new_id: NodeIndex,
     pub cur_x: f64,
     pub cur_y: f64,
     pub delta_x: f64,

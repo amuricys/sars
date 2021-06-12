@@ -1,7 +1,7 @@
 pub mod recorders;
 
-use types;
 use std::f64::consts::PI;
+use types;
 
 pub fn toml_table_to_params(table: toml::Value) -> types::Params {
     match table {
@@ -18,6 +18,7 @@ pub fn toml_table_to_params(table: toml::Value) -> types::Params {
                 compression_factor: m.get("compression_factor").unwrap().as_float().unwrap(),
                 softness_factor: m.get("softness_factor").unwrap().as_float().unwrap(),
                 how_smooth: m.get("how_smooth").unwrap().as_integer().unwrap() as usize,
+                max_merge_steps_away: m.get("max_merge_steps_away").unwrap().as_integer().unwrap() as usize,
                 node_addition_threshold: m.get("node_addition_threshold").unwrap().as_float().unwrap(),
                 node_deletion_threshold: m.get("node_deletion_threshold").unwrap().as_float().unwrap(),
                 low_high: (
