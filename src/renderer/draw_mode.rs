@@ -136,10 +136,10 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
             all_lines.extend(mk_lines(inner_points, consts::BLUE).iter());
             all_lines
         }
-        State::SurfaceStitched(ts, s) => lines_from_thick_surface(ts, s),
-        State::SurfaceUnstitched(ts) => lines_from_thick_surface(ts, &stitcher::types::Stitching::new()),
+        State::SurfaceStitched(ts, s) => lines_from_thick_surface(ts),
+        State::SurfaceUnstitched(ts) => lines_from_thick_surface(ts),
         State::SurfaceStitchingA(ts, s) => {
-            let mut all_lines = lines_from_thick_surface(ts, s);
+            let mut all_lines = lines_from_thick_surface(ts);
             let outer_n = closest_node_to_some_point(&ts.layers[OUTER], last_mouse_pos.0, last_mouse_pos.1);
             let inner_n = closest_node_to_some_point(&ts.layers[INNER], last_mouse_pos.0, last_mouse_pos.1);
             let (highlighted_x, highlighted_y) = if distance_between_points(last_mouse_pos.0, last_mouse_pos.1, outer_n.x, outer_n.y)
@@ -153,7 +153,7 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
             all_lines
         }
         State::SurfaceStitchingB(ts, s, (last_node_id, last_layer_id)) => {
-            let mut all_lines = lines_from_thick_surface(ts, s);
+            let mut all_lines = lines_from_thick_surface(ts);
             let closest_next = closest_node_to_some_point(
                 &ts.layers[if *last_layer_id == OUTER { INNER } else { OUTER }],
                 last_mouse_pos.0,
@@ -180,13 +180,13 @@ fn state_to_lines(s: &State, last_mouse_pos: (f64, f64)) -> Vec<Line> {
                 delta_x: last_mouse_pos.0 - closest_node.x,
                 delta_y: last_mouse_pos.1 - closest_node.y,
             };
-            let mut all_lines = lines_from_thick_surface(ts, s);
+            let mut all_lines = lines_from_thick_surface(ts);
             let surrounding_imaginary_changes = smooth_change_out(&ts.layers[OUTER], imaginary_change, Smooth::Count(3));
             let inner_imaginary_changes = changer_of_choice(&ts.layers[INNER], &ts.layers[OUTER], &surrounding_imaginary_changes, 0.0, s);
             all_lines.extend(lines_from_change_map(ts, vec![surrounding_imaginary_changes, inner_imaginary_changes]));
             all_lines
         }
-        State::SurfaceOptimizing(sb) => lines_from_thick_surface(&sb.ts, &sb.s),
+        State::SurfaceOptimizing(sb) => lines_from_thick_surface(&sb.ts),
         _ => Vec::new(),
     }
 }

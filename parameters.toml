@@ -9,7 +9,7 @@
 "node_addition_threshold" = 0.035
 "node_deletion_threshold" = 0.01
 "low_high" = [-0.2, 0.2]
-"recorders" = []
+"recorders" = ["energy", "outer perimeter"]
 "temperature_param" = -0.05
 "output_file_path" = "output.csv"
 # o ------------ 0.41 ----------- o

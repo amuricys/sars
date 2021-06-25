@@ -3,6 +3,7 @@ use graph::circular_thick_surface;
 use graph::effects::{add_node_, apply_changes, changer_of_choice, merge_nodes_, random_change, revert_changes, smooth_change_out};
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use linalg_helpers::lines_intersection;
+use rand::prelude::ThreadRng;
 use rand::Rng;
 use stitcher::stitch_default;
 use stitcher::types::Stitching;
@@ -155,22 +156,26 @@ pub struct SimState {
     pub temperature: f64,
     pub stitching: Stitching,
     pub timestep: u64,
+    pub rng: ThreadRng,
 }
 
 impl SimState {
     pub fn initial_state(p: &Params) -> SimState {
         let ts = circular_thick_surface(p.initial_radius, p.initial_thickness, p.initial_num_points);
         let s = stitch_default(&ts);
+        let mut rng = rand::thread_rng();
+
         SimState {
             ts: ts,
             temperature: p.initial_temperature,
             stitching: s,
             timestep: 0,
+            rng: rng,
         }
     }
 }
 
-pub fn step(sim_state: &mut SimState, params: &Params, rng: &mut rand::rngs::ThreadRng) -> Vec<NodeChangeMap> {
+pub fn step(sim_state: &mut SimState, params: &Params) -> Vec<NodeChangeMap> {
     let how_smooth = params.how_smooth;
     let compression_factor = params.compression_factor;
     let low_high = params.low_high;
@@ -185,7 +190,7 @@ pub fn step(sim_state: &mut SimState, params: &Params, rng: &mut rand::rngs::Thr
         compression_factor,
         &sim_state.stitching,
         low_high,
-        rng,
+        &mut sim_state.rng,
     );
 
     let energy_state = energy(&sim_state.ts, params.initial_gray_matter_area);
@@ -200,7 +205,7 @@ pub fn step(sim_state: &mut SimState, params: &Params, rng: &mut rand::rngs::Thr
         energy_state,
         energy_neighbor,
         sim_state.temperature,
-        rng,
+        &mut sim_state.rng,
     );
     add_single_node_effects(&mut sim_state.ts, OUTER, node_addition_threshold);
     add_single_node_effects(&mut sim_state.ts, INNER, node_addition_threshold);

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::iter::once;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Smooth<L, R> {
@@ -174,5 +175,19 @@ pub struct ThickSurface {
 impl ThickSurface {
     pub(crate) fn new(outer: Graph, inner: Graph) -> ThickSurface {
         ThickSurface { layers: vec![outer, inner] }
+    }
+    pub(crate) fn points_iter(&self, layer_id: usize) -> Vec<&Node> {
+        let fst = &self.layers[layer_id].nodes[0];
+        let mut walker = fst;
+        let mut ret = Vec::new();
+        ret.push(walker);
+        loop {
+            walker = walker.next(&self.layers[layer_id]);
+            ret.push(walker);
+            if walker == fst {
+                break;
+            }
+        }
+        ret
     }
 }

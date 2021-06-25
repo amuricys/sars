@@ -21,7 +21,7 @@ use stitcher::types::{Stitching, Strategy};
 use stitcher::{stitch_choice, stitch_default};
 use types::Params;
 
-pub fn lines_from_thick_surface(ts: &ThickSurface, Stitching::Stitch(v): &Stitching) -> Vec<types::Line> {
+pub fn lines_from_thick_surface(ts: &ThickSurface) -> Vec<types::Line> {
     let mut lines = Vec::new();
     let color_array = [consts::PINK, consts::BLUE, consts::PURPLE];
     for i in 0..ts.layers.len() {
@@ -211,7 +211,7 @@ pub fn setup_optimization_and_loop<F>(
 
         render_state = next_state(e.press_args(), render_state);
         match render_state.step_type {
-            StepType::Automatic => changeset = simulated_annealing::step(sim_state, params, rng),
+            StepType::Automatic => changeset = simulated_annealing::step(sim_state, params),
             StepType::Reset => {
                 changeset = vec![];
                 *sim_state = simulated_annealing::SimState::initial_state(params)
