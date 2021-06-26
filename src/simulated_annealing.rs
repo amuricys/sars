@@ -129,8 +129,6 @@ fn aaa(ts: &ThickSurface) {
 
 fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: usize, deletion_threshold: f64, max_merge_steps_away: usize) {
     let graph_from_which_delete = &ts.layers[layer_from_which_delete];
-    let adj = if layer_from_which_delete == OUTER { INNER } else { OUTER };
-
     for n in &graph_from_which_delete.nodes {
         match graph::nodes_to_merge(ts, layer_from_which_delete, n, deletion_threshold, max_merge_steps_away) {
             Some(deletion) => {

@@ -171,10 +171,9 @@ pub fn merge_nodes_(ts: &mut ThickSurface, m: &NodeMerging) {
     // println!("deletion: {:?}, len: {}, layer: {}", m, ts.layers[layer_from_which_delete].nodes.len(), layer_from_which_delete);
     // println!("prev: {:?}\nnext: {:?}\n", ts.layers[layer_from_which_delete].nodes[m.one_end.prev_id], ts.layers[layer_from_which_delete].nodes[m.oth_end.next_id]);
     let layer_from_which_delete = m.layer_id;
-    /* 0. Move surviving node of the merged pair to the pair's avg position */
-    let (avg_x, avg_y) = ((m.one_end.x + m.oth_end.x) / 2.0, (m.one_end.y + m.oth_end.y) / 2.0);
-    ts.layers[layer_from_which_delete].nodes[m.one_end.id].x = avg_x;
-    ts.layers[layer_from_which_delete].nodes[m.one_end.id].y = avg_y;
+    /* 0. Move surviving node */
+    ts.layers[layer_from_which_delete].nodes[m.one_end.id].x = m.survivor_x;
+    ts.layers[layer_from_which_delete].nodes[m.one_end.id].y = m.survivor_y;
 
     update_the_fk_thing(m, &mut ts.layers[layer_from_which_delete])
 }

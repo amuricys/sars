@@ -64,18 +64,28 @@ enum GuiMode {
 struct App {
     mode: GuiMode,
     mouse_pos: [f64; 2],
+    just_pressed_left: bool,
+    just_pressed_right: bool,
 }
 impl App {
     fn new() -> App {
         App {
             mode: GuiMode::Run(RunModeAppState::new()),
             mouse_pos: [0.0, 0.0],
+            just_pressed_left: false,
+            just_pressed_right: false,
         }
     }
     fn handle_event(&mut self, e: &event::Input) {
         match e {
+            event::Input::Motion(_) => {},
+            _ => println!("{:?}", e)
+        };
+        match e {
             event::Input::Motion(input::Motion::MouseCursor { x, y }) => self.mouse_pos = [*x, *y],
-            _ => {}
+            event::Input::Release(input::Button::Mouse(input::MouseButton::Left)) => self.just_pressed_left = true,
+            event::Input::Release(input::Button::Mouse(input::MouseButton::Right)) => self.just_pressed_right = true,
+            _ => { self.just_pressed_left = false; self.just_pressed_right = false },
         }
     }
 }
@@ -84,6 +94,7 @@ fn handle_input_event<T>(window: &PistonWindow, event: &T, ui: &mut Ui, app: &mu
 where
     T: GenericEvent + Clone,
 {
+
     let size = window.size();
     let (win_w, win_h) = (size.width as conrod_core::Scalar, size.height as conrod_core::Scalar);
     if let Some(e) = conrod_piston::event::convert(event.clone(), win_w, win_h) {
@@ -115,7 +126,10 @@ fn handle_app_state(app: &mut App) {
             }
         }
         GuiMode::Draw(d) => {
-            draw_mode::handle_app_state(d);
+            draw_mode::handle_app_state(d, &app.mouse_pos, app.just_pressed_left, app.just_pressed_right);
+            // We need to de-set these variables here becuase this fn gets called MORE than the input handler
+            if app.just_pressed_left { app.just_pressed_left = false };
+            if app.just_pressed_right { app.just_pressed_right = false };
             if !d.is_draw_state {
                 app.mode = GuiMode::Run(RunModeAppState::from(d.sim.clone(), d.params.clone()))
             }

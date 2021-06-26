@@ -6,6 +6,7 @@ use graph::types::*;
 use linalg_helpers;
 use linalg_helpers::{dist, lines_intersection};
 use renderer::lines_from_thick_surface;
+use std::f32::INFINITY;
 
 // TODO: MAKE IT NT CYCLICAL
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
@@ -109,6 +110,32 @@ pub fn closest_nodes_to_some_point(graph: &Graph, some_point_x: f64, some_point_
     }
 }
 
+pub fn closest_node_across_all_layers(ts: &ThickSurface, some_point_x: f64, some_point_y: f64) -> (&Node, usize) {
+    let (mut so_far, mut ret) = (f64::INFINITY, (&ts.layers[OUTER].nodes[0], 0));
+
+    for l in 0..ts.layers.len() {
+        let hmm = closest_node_to_some_point(&ts.layers[l], some_point_x, some_point_y);
+        if dist(hmm.x, hmm.y, some_point_x, some_point_y) < so_far {
+            so_far = dist(hmm.x, hmm.y, some_point_x, some_point_y);
+            ret = (hmm, l);
+        }
+    }
+    ret
+}
+
+pub fn closest_nodes_across_all_layers(ts: &ThickSurface, some_point_x: f64, some_point_y: f64) -> (&Node, &Node, usize) {
+    let (mut so_far, mut ret) = (f64::INFINITY, (&ts.layers[OUTER].nodes[0], &ts.layers[OUTER].nodes[0], 0));
+
+    for l in 0..ts.layers.len() {
+        let (hmm_p, hmm_n) = closest_nodes_to_some_point(&ts.layers[l], some_point_x, some_point_y);
+        if dist(hmm_p.x, hmm_p.y, some_point_x, some_point_y) < so_far {
+            so_far = dist(hmm_p.x, hmm_p.y, some_point_x, some_point_y);
+            ret = (hmm_p, hmm_n, l);
+        }
+    }
+    ret
+}
+
 pub fn graphs_to_lines(graphs: &Vec<Graph>) -> Vec<(f64, f64, f64, f64)> {
     let mut ret = Vec::new();
     for g in graphs {
@@ -168,15 +195,22 @@ pub struct NodeMerging {
     oth_end: Node,
     dist: usize,
     layer_id: usize,
+    survivor_x: f64,
+    survivor_y: f64,
 }
 
 pub fn nodes_to_merge(ts: &ThickSurface, layer_id: usize, src: &Node, deletion_threshold: f64, max_merge_steps_away: usize) -> Option<NodeMerging> {
     for i in 1..max_merge_steps_away + 1 {
+        let nnnn = src.clone();
+        let mmmm = src.next_by(&ts.layers[layer_id], i).clone();
+        let (avg_x, avg_y) = ((nnnn.x + mmmm.x) / 2.0, (nnnn.y + mmmm.y) / 2.0);
         let m = NodeMerging {
-            one_end: src.clone(),
-            oth_end: src.next_by(&ts.layers[layer_id], i).clone(),
+            one_end: nnnn,
+            oth_end: mmmm,
             dist: i,
             layer_id: layer_id,
+            survivor_x: avg_x,
+            survivor_y: avg_y
         };
         if can_merge(ts, &m, deletion_threshold) {
             return Some(m);

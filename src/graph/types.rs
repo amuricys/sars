@@ -1,4 +1,9 @@
+use graph::effects::{add_node_, merge_nodes_};
+use graph::{closest_nodes_across_all_layers, closest_nodes_to_some_point, graphs_to_lines, available_node_id, NodeMerging, closest_node_across_all_layers};
+use linalg_helpers::{dist, lines_intersection};
+use renderer::lines_from_thick_surface;
 use std::collections::HashMap;
+use std::f64::INFINITY;
 use std::iter::once;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -124,6 +129,16 @@ impl Node {
     pub(crate) fn pos(&self) -> (f64, f64) {
         (self.x, self.y)
     }
+
+    pub(crate) fn dummy_default() -> Self {
+        Node {
+            id: 0,
+            x: 0.0,
+            y: 0.0,
+            next_id: 0,
+            prev_id: 0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -189,5 +204,46 @@ impl ThickSurface {
             }
         }
         ret
+    }
+    // This will do its best to add a node at the given position
+    pub(crate) fn best_effort_add(&mut self, x: f64, y: f64) -> Result<(), ()> {
+        let mut new_ts = self.clone();
+        let (prev, next, layer_id) = closest_nodes_across_all_layers(&new_ts, x, y);
+        let new_node_id = available_node_id(&new_ts.layers[layer_id]);
+        let new_node = Node {
+            id: new_node_id,
+            x: x,
+            y: y,
+            next_id: next.id,
+            prev_id: prev.id,
+        };
+        add_node_(&mut new_ts, layer_id, &NodeAddition { n: new_node });
+        match lines_intersection(&graphs_to_lines(&new_ts.layers)) {
+            Some(_) => Err(()),
+            _ => {
+                *self = new_ts;
+                Ok(())
+            }
+        }
+    }
+    pub(crate) fn best_effort_delete(&mut self, x: f64, y: f64) -> Result<(), ()> {
+        let mut new_ts = self.clone();
+        let (dier, layer_id) = closest_node_across_all_layers(&new_ts, x, y);
+        let m = NodeMerging {
+            one_end: dier.prev(&new_ts.layers[layer_id]).clone(),
+            oth_end: dier.clone(),
+            dist: 1,
+            layer_id: layer_id,
+            survivor_x: dier.prev(&new_ts.layers[layer_id]).clone().x,
+            survivor_y: dier.prev(&new_ts.layers[layer_id]).clone().y
+        };
+        merge_nodes_(&mut new_ts, &m);
+        match lines_intersection(&graphs_to_lines(&new_ts.layers)) {
+            Some(_) => Err(()),
+            _ => {
+                *self = new_ts;
+                Ok(())
+            }
+        }
     }
 }

@@ -95,7 +95,7 @@ impl RunModeAppState {
     }
 }
 
-fn counter_logic(lil_counter: &mut usize, lim: usize) {
+pub fn counter_logic(lil_counter: &mut usize, lim: usize) {
     if *lil_counter > 0 {
         *lil_counter = *lil_counter + 1;
     }

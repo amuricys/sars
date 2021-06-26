@@ -11,9 +11,11 @@ use conrod_core::widget::text_box::Event;
 use conrod_core::widget::Id;
 use conrod_piston::event::GenericEvent;
 use file_io::toml_table_to_params;
-use graph::types::{ThickSurface, INNER, OUTER};
+use graph::effects::add_node_;
+use graph::types::{Node, NodeAddition, ThickSurface, INNER, OUTER};
 use graph::{circular_thick_surface, closest_node_to_some_point, closest_nodes_to_some_point};
 use linalg_helpers::dist;
+use my_gui::run_mode::counter_logic;
 use num_traits::{Num, NumCast};
 use piston_window::texture::UpdateTexture;
 use piston_window::OpenGL;
@@ -69,6 +71,10 @@ pub struct DrawModeAppState {
     text_box_states: TextBoxStates,
     pub(crate) sim: SimState,
     pub(crate) is_draw_state: bool,
+    pub(crate) just_added_node: usize,
+    pub(crate) just_failed_to_add_node: usize,
+    pub(crate) just_deleted_node: usize,
+    pub(crate) just_failed_to_delete_node: usize,
 }
 
 impl DrawModeAppState {
@@ -80,6 +86,10 @@ impl DrawModeAppState {
         DrawModeAppState {
             sim: SimState::initial_state(&params),
             is_draw_state: true,
+            just_added_node: 0,
+            just_failed_to_add_node: 0,
+            just_deleted_node: 0,
+            just_failed_to_delete_node: 0,
             text_box_states: TextBoxStates::new(&params),
             params: params,
         }
@@ -88,22 +98,36 @@ impl DrawModeAppState {
         DrawModeAppState {
             sim: ss,
             is_draw_state: true,
+            just_added_node: 0,
+            just_failed_to_add_node: 0,
+            just_deleted_node: 0,
+            just_failed_to_delete_node: 0,
             text_box_states: TextBoxStates::new(&params),
             params: params,
         }
     }
 }
 
-fn counter_logic(lil_counter: &mut usize, lim: usize) {
-    if *lil_counter > 0 {
-        *lil_counter = *lil_counter + 1;
-    }
-    if *lil_counter > lim {
-        *lil_counter = 0;
-    }
-}
+pub fn handle_app_state(app: &mut DrawModeAppState, mouse_pos: &[f64; 2], just_pressed_left: bool, just_pressed_right: bool) {
+    const NUM_ITERATIONS_TIL_THING_DISAPPEARS: usize = 450;
 
-pub fn handle_app_state(app: &mut DrawModeAppState) {}
+    if just_pressed_left {
+        match app.sim.ts.best_effort_add(mouse_pos[0] / 400.0, mouse_pos[1] / 400.0) {
+            Ok(_) => app.just_added_node = 1,
+            Err(_) => app.just_failed_to_add_node = 1,
+        }
+    }
+    if just_pressed_right {
+        match app.sim.ts.best_effort_delete(mouse_pos[0] / 400.0, mouse_pos[1] / 400.0) {
+            Ok(_) => app.just_deleted_node = 1,
+            Err(_) => app.just_failed_to_delete_node = 1,
+        }
+    }
+    counter_logic(&mut app.just_added_node, NUM_ITERATIONS_TIL_THING_DISAPPEARS);
+    counter_logic(&mut app.just_failed_to_add_node, NUM_ITERATIONS_TIL_THING_DISAPPEARS);
+    counter_logic(&mut app.just_deleted_node, NUM_ITERATIONS_TIL_THING_DISAPPEARS);
+    counter_logic(&mut app.just_failed_to_delete_node, NUM_ITERATIONS_TIL_THING_DISAPPEARS);
+}
 
 macro_rules! make_text_boxes {
     ( $(  ($param:tt, $paramname:tt, $z: expr, $app: expr, $ids: expr, $ui: expr, $anchor: tt)), *) => {
