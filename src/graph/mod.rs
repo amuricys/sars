@@ -4,7 +4,7 @@ pub mod types;
 use graph::effects::merge_nodes_;
 use graph::types::*;
 use linalg_helpers;
-use linalg_helpers::lines_intersection;
+use linalg_helpers::{dist, lines_intersection};
 use renderer::lines_from_thick_surface;
 
 // TODO: MAKE IT NT CYCLICAL
@@ -96,6 +96,17 @@ pub fn closest_node_to_some_point(graph: &Graph, some_point_x: f64, some_point_y
                 .unwrap()
         })
         .unwrap()
+}
+
+pub fn closest_nodes_to_some_point(graph: &Graph, some_point_x: f64, some_point_y: f64) -> (&Node, &Node) {
+    let closest = closest_node_to_some_point(graph, some_point_x, some_point_y);
+    if dist(closest.next(graph).x, closest.next(graph).y, some_point_x, some_point_y)
+        < dist(closest.prev(graph).x, closest.prev(graph).y, some_point_x, some_point_y)
+    {
+        (closest, closest.next(graph))
+    } else {
+        (closest.prev(graph), closest)
+    }
 }
 
 pub fn graphs_to_lines(graphs: &Vec<Graph>) -> Vec<(f64, f64, f64, f64)> {

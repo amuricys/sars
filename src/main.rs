@@ -1,4 +1,4 @@
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
 mod file_io;
 mod graph;
@@ -23,9 +23,9 @@ extern crate vec1;
 extern crate conrod_core;
 extern crate conrod_piston;
 extern crate find_folder;
+extern crate num_traits;
 extern crate piston_window;
 extern crate regex;
-extern crate num_traits;
 
 use renderer::draw_mode::draw_mode_rendering;
 use std::env;
