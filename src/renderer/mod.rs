@@ -13,6 +13,7 @@ use graph;
 use file_io::recorders;
 use piston::{Button, Event, PressEvent};
 use simulated_annealing;
+use simulated_annealing_dumber_and_better;
 
 use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use renderer::types::Line;
@@ -182,7 +183,6 @@ fn maybe_imaginary_lines(state: &RenderState, e: &Event, sim_state: &SimState, p
 
 pub fn setup_optimization_and_loop<F>(
     sim_state: &mut SimState,
-    rng: &mut rand::rngs::ThreadRng,
     window: &mut Window,
     renderer: &mut types::Renderer,
     how_to_make_lines: F,
@@ -193,7 +193,6 @@ pub fn setup_optimization_and_loop<F>(
     let mut render_state = initial_render_state();
     let mut recording_state = recorders::RecordingState::initial_state(&params);
     let mut events = Events::new(EventSettings::new());
-    let mut changeset = vec![];
     let mut imaginary_lines = Vec::new();
 
     while let Some(e) = events.next(window) {
@@ -211,9 +210,10 @@ pub fn setup_optimization_and_loop<F>(
 
         render_state = next_state(e.press_args(), render_state);
         match render_state.step_type {
-            StepType::Automatic => changeset = simulated_annealing::step(sim_state, params),
+            StepType::Automatic => {
+                simulated_annealing_dumber_and_better::step(sim_state, params)
+            }, // simulated_annealing::step(sim_state, params),
             StepType::Reset => {
-                changeset = vec![];
                 *sim_state = simulated_annealing::SimState::initial_state(params)
             }
             _ => {}

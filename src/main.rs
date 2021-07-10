@@ -7,6 +7,7 @@ mod my_gui;
 mod renderer;
 mod shared_shit;
 mod simulated_annealing;
+mod simulated_annealing_dumber_and_better;
 mod stitcher;
 mod types;
 
@@ -45,7 +46,6 @@ fn real_main() {
 
     renderer::setup_optimization_and_loop(
         &mut sim_state,
-        &mut rng,
         &mut window,
         &mut renderer,
         |ss| renderer::lines_from_thick_surface(&ss.ts),

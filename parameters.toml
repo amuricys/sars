@@ -1,13 +1,13 @@
 "initial_thickness" = 0.025
 "initial_radius" = 0.95
-"initial_num_points" = 200
+"initial_num_points" = 250
 "initial_temperature" = 10.0
 "compression_factor" = 1.1
 "softness_factor" = 1.0
 "how_smooth" = 8
 "max_merge_steps_away" = 3
-"node_addition_threshold" = 0.035
-"node_deletion_threshold" = 0.01
+"node_addition_threshold" = 0.015
+"node_deletion_threshold" = 0.005
 "low_high" = [-0.2, 0.2]
 "recorders" = ["energy", "outer perimeter"]
 "temperature_param" = -0.05

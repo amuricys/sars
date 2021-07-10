@@ -1,5 +1,7 @@
 use graph::effects::{add_node_, merge_nodes_};
-use graph::{closest_nodes_across_all_layers, closest_nodes_to_some_point, graphs_to_lines, available_node_id, NodeMerging, closest_node_across_all_layers};
+use graph::{
+    available_node_id, closest_node_across_all_layers, closest_nodes_across_all_layers, closest_nodes_to_some_point, graphs_to_lines, NodeMerging,
+};
 use linalg_helpers::{dist, lines_intersection};
 use renderer::lines_from_thick_surface;
 use std::collections::HashMap;
@@ -235,7 +237,7 @@ impl ThickSurface {
             dist: 1,
             layer_id: layer_id,
             survivor_x: dier.prev(&new_ts.layers[layer_id]).clone().x,
-            survivor_y: dier.prev(&new_ts.layers[layer_id]).clone().y
+            survivor_y: dier.prev(&new_ts.layers[layer_id]).clone().y,
         };
         merge_nodes_(&mut new_ts, &m);
         match lines_intersection(&graphs_to_lines(&new_ts.layers)) {

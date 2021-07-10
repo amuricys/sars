@@ -189,6 +189,10 @@ fn can_merge(ts: &ThickSurface, node_merging: &NodeMerging, deletion_threshold: 
     distance_between_nodes(&node_merging.one_end, &node_merging.oth_end) < deletion_threshold && merging_wouldnt_add_intersection(ts, node_merging)
 }
 
+fn can_merge_without_intersection_check(ts: &ThickSurface, node_merging: &NodeMerging, deletion_threshold: f64) -> bool {
+    distance_between_nodes(&node_merging.one_end, &node_merging.oth_end) < deletion_threshold
+}
+
 #[derive(Clone, Debug)]
 pub struct NodeMerging {
     one_end: Node,
@@ -199,7 +203,14 @@ pub struct NodeMerging {
     survivor_y: f64,
 }
 
-pub fn nodes_to_merge(ts: &ThickSurface, layer_id: usize, src: &Node, deletion_threshold: f64, max_merge_steps_away: usize) -> Option<NodeMerging> {
+pub fn nodes_to_merge(
+    ts: &ThickSurface,
+    layer_id: usize,
+    src: &Node,
+    deletion_threshold: f64,
+    max_merge_steps_away: usize,
+    check_ints: bool,
+) -> Option<NodeMerging> {
     for i in 1..max_merge_steps_away + 1 {
         let nnnn = src.clone();
         let mmmm = src.next_by(&ts.layers[layer_id], i).clone();
@@ -210,9 +221,13 @@ pub fn nodes_to_merge(ts: &ThickSurface, layer_id: usize, src: &Node, deletion_t
             dist: i,
             layer_id: layer_id,
             survivor_x: avg_x,
-            survivor_y: avg_y
+            survivor_y: avg_y,
         };
-        if can_merge(ts, &m, deletion_threshold) {
+        let b = match check_ints {
+            true => can_merge(ts, &m, deletion_threshold),
+            false => can_merge_without_intersection_check(ts, &m, deletion_threshold),
+        };
+        if b {
             return Some(m);
         }
     }
