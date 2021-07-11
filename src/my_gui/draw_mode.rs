@@ -23,7 +23,7 @@ use piston_window::{Flip, G2d, G2dTexture, Texture, TextureSettings};
 use piston_window::{PistonWindow, UpdateEvent, Window, WindowSettings};
 use regex::Regex;
 use renderer::lines_from_thick_surface;
-use simulated_annealing::{step, SimState};
+use simulated_annealing::{SimState};
 use std::fmt::Debug;
 use std::str::FromStr;
 use stitcher::types::Stitching;

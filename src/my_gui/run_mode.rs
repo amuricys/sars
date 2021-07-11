@@ -68,6 +68,8 @@ pub struct RunModeAppState {
     pub(crate) sim: SimState,
     is_paused: bool,
     pub(crate) is_draw_state: bool,
+    outer_color: (f32, f32, f32),
+    inner_color: (f32, f32, f32)
 }
 
 impl RunModeAppState {
@@ -82,6 +84,8 @@ impl RunModeAppState {
             is_draw_state: false,
             text_box_states: TextBoxStates::new(&params),
             params: params,
+            outer_color: (1.0, 0.0, 1.0),
+            inner_color: (0.4, 0.0, 1.0)
         }
     }
     pub fn from(ss: SimState, params: Params) -> Self {
@@ -91,6 +95,8 @@ impl RunModeAppState {
             is_draw_state: false,
             text_box_states: TextBoxStates::new(&params),
             params: params,
+            outer_color: (1.0, 0.0, 1.0),
+            inner_color: (0.4, 0.0, 1.0),
         }
     }
 }
@@ -193,6 +199,13 @@ widget_ids! {
         extra_id,
         draw_toggle_0,
         draw_toggle_1,
+        title_color_sliders,
+        red_inner,
+        green_inner,
+        blue_inner,
+        red_outer,
+        green_outer,
+        blue_outer,
         // File navigator for deciding output
         file_nav,
         // Scrollbar
@@ -256,6 +269,79 @@ fn make_text_box<T>(
             .color(color::GREEN)
             .set(ids.extra_id, ui);
     }
+}
+
+fn make_color_sliders (
+    anchor_id: Id,
+    ids: &Ids,
+    app: &mut RunModeAppState,
+    ui: &mut conrod_core::UiCell,
+) {
+    /////////////////////////////////
+    //////////////// INNER PTS SLIDER
+    /////////////////////////////////
+    for i in widget::Slider::new(app.inner_color.0, 0.0, 1.0)
+        .label("red")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(app.inner_color.0, 0.0, 0.0, 1.0))
+        .down_from(anchor_id, 20.0)
+        .set(ids.red_inner, ui)
+    {
+        app.inner_color.0 = i;
+    }
+
+    for i in widget::Slider::new(app.inner_color.1, 0.0, 1.0)
+        .label("green")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(0.0, app.inner_color.1, 0.0, 1.0))
+        .down_from(ids.red_inner, 20.0)
+        .set(ids.green_inner, ui)
+    {
+        app.inner_color.1 = i;
+    }
+
+    for i in widget::Slider::new(app.inner_color.2, 0.0, 1.0)
+        .label("blue")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(0.0, 0.0, app.inner_color.2, 1.0))
+        .down_from(ids.green_inner, 20.0)
+        .set(ids.blue_inner, ui)
+    {
+        app.inner_color.2 = i;
+    }
+    /////////////////////////////////
+    //////////////// OUTER PTS SLIDER
+    /////////////////////////////////
+    for i in widget::Slider::new(app.outer_color.0, 0.0, 1.0)
+        .label("red")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(app.outer_color.0, 0.0, 0.0, 1.0))
+        .down_from(ids.blue_inner, 20.0)
+        .set(ids.red_outer, ui)
+    {
+        app.outer_color.0 = i;
+    }
+
+    for i in widget::Slider::new(app.outer_color.1, 0.0, 1.0)
+        .label("green")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(0.0, app.outer_color.1, 0.0, 1.0))
+        .down_from(ids.red_outer, 20.0)
+        .set(ids.green_outer, ui)
+    {
+        app.outer_color.1 = i;
+    }
+
+    for i in widget::Slider::new(app.outer_color.2, 0.0, 1.0)
+        .label("blue")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(0.0, 0.0, app.outer_color.2, 1.0))
+        .down_from(ids.green_outer, 20.0)
+        .set(ids.blue_outer, ui)
+    {
+        app.outer_color.2 = i;
+    }
+
 }
 
 /// Instantiate a GUI demonstrating every widget available in conrod.
@@ -354,16 +440,25 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
         app.is_draw_state = true;
     }
 
+    widget::Text::new("Outer v Inner colors")
+        .right_from( ids.initial_thickness, ui.kid_area_of(ids.canvas).unwrap().w() * 0.7)
+        .set(ids.title_color_sliders, ui);
+    make_color_sliders(ids.title_color_sliders, ids, app, ui);
+
     /////////////////////////////////
     //// Actual point rendering /////
     /////////////////////////////////
 
     let out_pts: Vec<[f64; 2]> = app.sim.ts.points_iter(OUTER).iter().map(|n| [n.x * 400.0, n.y * 400.0]).collect();
-    widget::PointPath::new(out_pts).right(SHAPE_GAP).set(ids.outer_point_path, ui);
+    widget::PointPath::new(out_pts)
+        .right(SHAPE_GAP)
+        .color(Color::Rgba(app.outer_color.0, app.outer_color.1, app.outer_color.2, 1.0))
+        .set(ids.outer_point_path, ui);
     let inn_pts: Vec<[f64; 2]> = app.sim.ts.points_iter(INNER).iter().map(|n| [n.x * 400.0, n.y * 400.0]).collect();
     widget::PointPath::new(inn_pts)
         .align_middle_x_of(ids.outer_point_path)
         .align_middle_y_of(ids.outer_point_path)
+        .color(Color::Rgba(app.inner_color.0, app.inner_color.1, app.inner_color.2, 1.0))
         .set(ids.inner_point_path, ui);
 
     // File Navigator: It's cool
