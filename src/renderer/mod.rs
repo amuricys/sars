@@ -210,12 +210,8 @@ pub fn setup_optimization_and_loop<F>(
 
         render_state = next_state(e.press_args(), render_state);
         match render_state.step_type {
-            StepType::Automatic => {
-                simulated_annealing_dumber_and_better::step(sim_state, params)
-            }, // simulated_annealing::step(sim_state, params),
-            StepType::Reset => {
-                *sim_state = simulated_annealing::SimState::initial_state(params)
-            }
+            StepType::Automatic => simulated_annealing_dumber_and_better::step(sim_state, params), // simulated_annealing::step(sim_state, params),
+            StepType::Reset => *sim_state = simulated_annealing::SimState::initial_state(params),
             _ => {}
         }
         match &mut recording_state {

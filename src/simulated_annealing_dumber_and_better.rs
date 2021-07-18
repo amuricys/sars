@@ -5,10 +5,10 @@ use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER
 use linalg_helpers::lines_intersection;
 use rand::prelude::ThreadRng;
 use rand::Rng;
+use simulated_annealing::SimState;
 use stitcher::stitch_default;
 use stitcher::types::Stitching;
 use types::Params;
-use simulated_annealing::SimState;
 
 const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
 
@@ -79,13 +79,7 @@ fn probability_to_accept_neighbor_state(energy_state: f64, energy_neighbor: f64,
     }
 }
 
-fn should_move_to_neighbor(
-    ts: &ThickSurface,
-    energy_state: f64,
-    energy_neighbor: f64,
-    temperature: f64,
-    rng: &mut rand::rngs::ThreadRng,
-) -> bool {
+fn should_move_to_neighbor(ts: &ThickSurface, energy_state: f64, energy_neighbor: f64, temperature: f64, rng: &mut rand::rngs::ThreadRng) -> bool {
     let lines1 = graph::graphs_to_lines(&ts.layers);
     let coin_flip = rng.gen_range(0.0, 1.0);
     match lines_intersection(&lines1) {
@@ -127,7 +121,7 @@ fn delete_single_node_effects(ts: &mut ThickSurface, layer_from_which_delete: us
     }
 }
 
-pub fn step(sim_state: &mut SimState, params: &Params)  {
+pub fn step(sim_state: &mut SimState, params: &Params) {
     let energy_state = energy(&sim_state.ts, params.initial_gray_matter_area);
     let neighbor = neighbor(
         &sim_state.ts,
@@ -144,13 +138,7 @@ pub fn step(sim_state: &mut SimState, params: &Params)  {
     );
     let energy_neighbor = energy(&neighbor, params.initial_gray_matter_area);
 
-    if should_move_to_neighbor(
-        &neighbor,
-        energy_state,
-        energy_neighbor,
-        sim_state.temperature,
-        &mut sim_state.rng,
-    ) {
+    if should_move_to_neighbor(&neighbor, energy_state, energy_neighbor, sim_state.temperature, &mut sim_state.rng) {
         sim_state.ts = neighbor;
     };
 

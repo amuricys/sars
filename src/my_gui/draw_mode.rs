@@ -1,32 +1,16 @@
-#[macro_use]
 use conrod_core::*;
-use rand;
 
-use conrod_core::image::Map;
-use conrod_core::position::{Align, Direction, Padding, Position, Relative};
-use conrod_core::text::rt::gpu_cache::Cache;
-use conrod_core::widget::file_navigator::Types::All;
-use conrod_core::widget::list::Item;
 use conrod_core::widget::text_box::Event;
 use conrod_core::widget::Id;
-use conrod_piston::event::GenericEvent;
 use file_io::toml_table_to_params;
-use graph::effects::add_node_;
-use graph::types::{Node, NodeAddition, ThickSurface, INNER, OUTER};
-use graph::{circular_thick_surface, closest_node_to_some_point, closest_nodes_to_some_point};
+use graph::closest_node_to_some_point;
+use graph::types::{INNER, OUTER};
 use linalg_helpers::dist;
 use my_gui::run_mode::counter_logic;
-use num_traits::{Num, NumCast};
-use piston_window::texture::UpdateTexture;
-use piston_window::OpenGL;
-use piston_window::{Flip, G2d, G2dTexture, Texture, TextureSettings};
-use piston_window::{PistonWindow, UpdateEvent, Window, WindowSettings};
+use num_traits::NumCast;
 use regex::Regex;
-use renderer::lines_from_thick_surface;
-use simulated_annealing::{SimState};
-use std::fmt::Debug;
+use simulated_annealing::SimState;
 use std::str::FromStr;
-use stitcher::types::Stitching;
 use types::Params;
 
 pub struct TextBoxStates {
@@ -237,10 +221,6 @@ fn make_text_box<T>(
     let button_width = ui.kid_area_of(ids.canvas).unwrap().w() * 0.1;
     let button_height = ui.kid_area_of(ids.canvas).unwrap().h() * 0.05;
     const INPUT_FT_SIZE: conrod_core::FontSize = 13;
-    const MARGIN: conrod_core::Scalar = 30.0;
-    const SHAPE_GAP: conrod_core::Scalar = 50.0;
-    const TITLE_SIZE: conrod_core::FontSize = 42;
-    const SUBTITLE_SIZE: conrod_core::FontSize = 32;
     for input in widget::text_box::TextBox::new(&*text_box_field.0)
         .down_from(anchor_id, 20.0)
         .w_h(button_width, button_height)
@@ -263,13 +243,8 @@ fn make_text_box<T>(
 }
 
 pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut DrawModeAppState, mouse_pos: [f64; 2]) {
-    use conrod_core::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
-    use std::iter::once;
-
     const MARGIN: conrod_core::Scalar = 30.0;
     const SHAPE_GAP: conrod_core::Scalar = 50.0;
-    const TITLE_SIZE: conrod_core::FontSize = 42;
-    const SUBTITLE_SIZE: conrod_core::FontSize = 32;
 
     // `Canvas` is a widget that provides some basic functionality for laying out children widgets.
     // By default, its size is the size of the window. We'll use this as a background for the
