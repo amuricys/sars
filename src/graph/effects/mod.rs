@@ -265,6 +265,8 @@ mod tests {
             oth_end: other_end,
             dist: 8,
             layer_id: OUTER,
+            survivor_x: 0.0,
+            survivor_y: 0.0,
         };
         merge_nodes_(&mut my_ts, &merging);
         let len_after = my_ts.layers[OUTER].nodes.len();

@@ -1,42 +1,21 @@
 mod draw_mode;
 mod run_mode;
 
-#[macro_use]
 use conrod_core::*;
-use rand;
-
-use conrod_core::image::Map;
-use conrod_core::position::{Align, Direction, Padding, Position, Relative};
-use conrod_core::text::rt::gpu_cache::Cache;
-use conrod_core::widget::file_navigator::Types::All;
-use conrod_core::widget::list::Item;
-use conrod_core::widget::text_box::Event;
-use conrod_core::widget::Id;
 use conrod_piston::event::GenericEvent;
-use file_io::toml_table_to_params;
-use graph::circular_thick_surface;
-use graph::types::{ThickSurface, INNER, OUTER};
 use my_gui::draw_mode::DrawModeAppState;
 use my_gui::run_mode::RunModeAppState;
-use num_traits::{Num, NumCast};
 use piston_window::texture::UpdateTexture;
 use piston_window::OpenGL;
-use piston_window::{Flip, G2d, G2dTexture, Texture, TextureSettings};
-use piston_window::{PistonWindow, UpdateEvent, Window, WindowSettings};
-use regex::Regex;
-use renderer::lines_from_thick_surface;
-use simulated_annealing::{step, SimState};
-use std::fmt::Debug;
-use std::str::FromStr;
-use stitcher::types::Stitching;
-use types::Params;
+use piston_window::{G2d, G2dTexture, TextureSettings};
+use piston_window::{PistonWindow, Window, WindowSettings};
 
 pub const WIN_W: u32 = 1600;
 pub const WIN_H: u32 = 840;
 
 /// A set of reasonable stylistic defaults that works for the `gui` below.
 pub fn theme() -> conrod_core::Theme {
-    use conrod_core::position::{Align, Direction, Padding, Position, Relative};
+    use conrod_core::position::{Align, Direction, Padding, Relative};
     conrod_core::Theme {
         name: "Demo Theme".to_string(),
         padding: Padding::none(),
@@ -140,7 +119,6 @@ fn handle_app_state(app: &mut App) {
                 app.mode = GuiMode::Run(RunModeAppState::from(d.sim.clone(), d.params.clone()))
             }
         }
-        _ => {}
     }
 }
 

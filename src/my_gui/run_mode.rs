@@ -1,29 +1,13 @@
-#[macro_use]
 use conrod_core::*;
-use rand;
 
-use conrod_core::image::Map;
-use conrod_core::position::{Align, Direction, Padding, Position, Relative};
-use conrod_core::text::rt::gpu_cache::Cache;
-use conrod_core::widget::file_navigator::Types::All;
-use conrod_core::widget::list::Item;
 use conrod_core::widget::text_box::Event;
 use conrod_core::widget::Id;
-use conrod_piston::event::GenericEvent;
 use file_io::toml_table_to_params;
-use graph::circular_thick_surface;
-use graph::types::{ThickSurface, INNER, OUTER};
-use num_traits::{Num, NumCast};
-use piston_window::texture::UpdateTexture;
-use piston_window::OpenGL;
-use piston_window::{Flip, G2d, G2dTexture, Texture, TextureSettings};
-use piston_window::{PistonWindow, UpdateEvent, Window, WindowSettings};
+use graph::types::{INNER, OUTER};
+use num_traits::NumCast;
 use regex::Regex;
-use renderer::lines_from_thick_surface;
 use simulated_annealing::{step, SimState};
-use std::fmt::Debug;
 use std::str::FromStr;
-use stitcher::types::Stitching;
 use types::Params;
 pub struct TextBoxStates {
     pub initial_thickness: (String, usize),
@@ -69,7 +53,7 @@ pub struct RunModeAppState {
     is_paused: bool,
     pub(crate) is_draw_state: bool,
     outer_color: (f32, f32, f32),
-    inner_color: (f32, f32, f32)
+    inner_color: (f32, f32, f32),
 }
 
 impl RunModeAppState {
@@ -85,7 +69,7 @@ impl RunModeAppState {
             text_box_states: TextBoxStates::new(&params),
             params: params,
             outer_color: (1.0, 0.0, 1.0),
-            inner_color: (0.4, 0.0, 1.0)
+            inner_color: (0.4, 0.0, 1.0),
         }
     }
     pub fn from(ss: SimState, params: Params) -> Self {
@@ -246,10 +230,6 @@ fn make_text_box<T>(
     let button_width = ui.kid_area_of(ids.canvas).unwrap().w() * 0.1;
     let button_height = ui.kid_area_of(ids.canvas).unwrap().h() * 0.05;
     const INPUT_FT_SIZE: conrod_core::FontSize = 13;
-    const MARGIN: conrod_core::Scalar = 30.0;
-    const SHAPE_GAP: conrod_core::Scalar = 50.0;
-    const TITLE_SIZE: conrod_core::FontSize = 42;
-    const SUBTITLE_SIZE: conrod_core::FontSize = 32;
     for input in widget::text_box::TextBox::new(&*text_box_field.0)
         .down_from(anchor_id, 20.0)
         .w_h(button_width, button_height)
@@ -271,12 +251,7 @@ fn make_text_box<T>(
     }
 }
 
-fn make_color_sliders (
-    anchor_id: Id,
-    ids: &Ids,
-    app: &mut RunModeAppState,
-    ui: &mut conrod_core::UiCell,
-) {
+fn make_color_sliders(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui: &mut conrod_core::UiCell) {
     /////////////////////////////////
     //////////////// INNER PTS SLIDER
     /////////////////////////////////
@@ -341,18 +316,12 @@ fn make_color_sliders (
     {
         app.outer_color.2 = i;
     }
-
 }
 
 /// Instantiate a GUI demonstrating every widget available in conrod.
 pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
-    use conrod_core::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
-    use std::iter::once;
-
     const MARGIN: conrod_core::Scalar = 30.0;
     const SHAPE_GAP: conrod_core::Scalar = 50.0;
-    const TITLE_SIZE: conrod_core::FontSize = 42;
-    const SUBTITLE_SIZE: conrod_core::FontSize = 32;
 
     // `Canvas` is a widget that provides some basic functionality for laying out children widgets.
     // By default, its size is the size of the window. We'll use this as a background for the
@@ -441,7 +410,7 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
     }
 
     widget::Text::new("Outer v Inner colors")
-        .right_from( ids.initial_thickness, ui.kid_area_of(ids.canvas).unwrap().w() * 0.7)
+        .right_from(ids.initial_thickness, ui.kid_area_of(ids.canvas).unwrap().w() * 0.7)
         .set(ids.title_color_sliders, ui);
     make_color_sliders(ids.title_color_sliders, ids, app, ui);
 
