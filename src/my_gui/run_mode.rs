@@ -282,6 +282,7 @@ fn make_text_box<T>(
     }
 }
 
+<<<<<<< HEAD
 fn make_recorder_widgets(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui: &mut conrod_core::UiCell) {
     /////////////////////////////////
     //////////////// 
