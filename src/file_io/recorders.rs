@@ -7,6 +7,7 @@ use std::io::Write;
 use graph::types::{ThickSurface, INNER, OUTER};
 use simulated_annealing::SimState;
 use types::Params;
+use std::collections::HashMap;
 
 type RecorderFn = for<'r, 's> fn(&'r ThickSurface, &'s Params) -> f64;
 
@@ -16,6 +17,15 @@ pub struct RecordingState {
 }
 
 impl RecordingState {
+    pub fn empty_state(file_path: &str) -> Option<RecordingState> {
+        return match File::create(file_path) {
+            Ok(mut f) => Some(RecordingState{
+                f,
+                last_recorded: vec![]
+            }),
+            Err(e) => panic!("Couldn't write to file: {:?}", e),
+        };
+    }
     pub fn initial_state(p: &Params) -> Option<RecordingState> {
         if !p.recorders.is_empty() {
             let mut header = String::new();
@@ -84,6 +94,19 @@ fn name_to_fn(n: &str) -> Option<RecorderFn> {
         "num outer points" => Some(num_outer_points),
         _ => None,
     }
+}
+
+pub fn rec_map() -> HashMap<String, RecorderFn> {
+    let mut r = HashMap::new();
+    r.insert(String::from("energy"), energy as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("outer perimeter"), outer_perimeter as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("inner perimeter"), inner_perimeter as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("outer area"), outer_area as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("inner area"), inner_area as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("gray matter area"), gray_matter_area as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("num inner points"), num_inner_points as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r.insert(String::from("num outer points"), num_outer_points as for<'r, 's> fn(&'r graph::types::ThickSurface, &'s Params) -> f64);
+    r
 }
 
 pub fn record(sim_state: &SimState, p: &Params, recording_state: &mut RecordingState) {
