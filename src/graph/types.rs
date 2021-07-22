@@ -180,6 +180,9 @@ impl Graph {
     pub fn prev(&self, id: usize) -> &Node {
         self.nodes[id].prev(self)
     }
+    pub fn to_vec_of_points(&self) -> Vec<(f64, f64)> {
+        panic!("FIX ME") // Dica: muito parecida com `points_iter()` definida abaixo pra ThickSurface
+    }
 }
 
 pub const OUTER: usize = 0;

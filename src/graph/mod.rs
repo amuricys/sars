@@ -1,5 +1,6 @@
 pub mod effects;
 pub mod types;
+mod convex_hull;
 
 use graph::effects::merge_nodes_;
 use graph::types::*;
@@ -8,7 +9,6 @@ use linalg_helpers::{dist, lines_intersection};
 use renderer::lines_from_thick_surface;
 use std::f32::INFINITY;
 
-// TODO: MAKE IT NT CYCLICAL
 pub fn cyclic_graph_from_coords(node_coordinates: &Vec<(f64, f64)>) -> Graph {
     let mut to_return: Graph = Graph { nodes: Vec::new() };
     let num_points = node_coordinates.len();
