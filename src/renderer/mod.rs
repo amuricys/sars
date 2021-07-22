@@ -218,6 +218,16 @@ pub fn setup_optimization_and_loop<F>(
             Some(f) => recorders::record(&sim_state, params, f),
             None => {}
         }
+        // Se vc quer que pare de rodar
+        if sim_state.timestep >= 10000 {
+            break
+        }
+        // Se vc quer que recomece
+        let timestamp = sim_state.timestep;
+        if timestamp >= 10000 {
+            *sim_state = SimState::initial_state(params);
+        }
+        // Se vc quer rodar de um programa EXTERNO, tbm é uma opção
     }
 }
 
