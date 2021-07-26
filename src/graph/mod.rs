@@ -56,6 +56,7 @@ pub fn area(g: &Graph) -> f64 {
         let prev = n.prev(g);
         let next = n.next(g);
 
+        // y2 (x1 - x3) + x2 (y3 - x1) (só o segundo termo tá codado)
         ret = ret + n.x * (next.y - prev.y);
     }
     ret / 2.0

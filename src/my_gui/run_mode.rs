@@ -11,7 +11,6 @@ use std::str::FromStr;
 use types::Params;
 use std::collections::HashMap;
 use file_io::recorders::{rec_map, RecordingState, record};
-use conrod_core::position::Position::Relative;
 
 pub struct TextBoxStates {
     pub initial_thickness: (String, usize),

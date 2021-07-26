@@ -27,6 +27,7 @@ extern crate find_folder;
 extern crate num_traits;
 extern crate piston_window;
 extern crate regex;
+extern crate geo;
 
 use renderer::draw_mode::draw_mode_rendering;
 use std::env;
