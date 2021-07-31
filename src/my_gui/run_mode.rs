@@ -11,6 +11,7 @@ use simulated_annealing::{step, SimState};
 use std::collections::HashMap;
 use std::str::FromStr;
 use types::Params;
+use graph::convex_hull::convex_hull_from_graph;
 
 pub struct TextBoxStates {
     pub initial_thickness: (String, usize),
@@ -59,6 +60,7 @@ pub struct RunModeAppState {
     recorders_selection_map: HashMap<String, bool>,
     outer_color: (f32, f32, f32),
     inner_color: (f32, f32, f32),
+    convex_hull_color: (f32, f32, f32),
 }
 
 impl RunModeAppState {
@@ -79,6 +81,7 @@ impl RunModeAppState {
             params: params,
             outer_color: (1.0, 0.0, 1.0),
             inner_color: (0.4, 0.0, 1.0),
+            convex_hull_color: (0.4, 0.4, 1.0),
             recorders_selection_map: r,
             recording_state: RecordingState::empty_state("output_gui.csv").unwrap(),
         }
@@ -96,6 +99,7 @@ impl RunModeAppState {
             params: params,
             outer_color: (1.0, 0.0, 1.0),
             inner_color: (0.4, 0.0, 1.0),
+            convex_hull_color: (0.4, 0.4, 1.0),
             recorders_selection_map: r,
             recording_state: RecordingState::empty_state("output_gui.csv").unwrap(),
         }
@@ -159,6 +163,7 @@ widget_ids! {
         canvas,
         outer_point_path,
         inner_point_path,
+        convex_hull_path,
         // Button, XyPad, Toggle.
         button,
         toggle,
@@ -208,6 +213,9 @@ widget_ids! {
         red_outer,
         green_outer,
         blue_outer,
+        red_convex,
+        green_convex,
+        blue_convex,
         // Recorders
         title_recorders,
         energy,
@@ -386,8 +394,42 @@ fn make_color_sliders(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui: &
     {
         app.outer_color.2 = i;
     }
+
+    /////////////////////////////////
+    //////////////// OUTER PTS SLIDER
+    /////////////////////////////////
+    for i in widget::Slider::new(app.convex_hull_color.0, 0.0, 1.0)
+        .label("red")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(app.convex_hull_color.0, 0.0, 0.0, 1.0))
+        .down_from(ids.blue_outer, 20.0)
+        .set(ids.red_convex, ui)
+    {
+        app.convex_hull_color.0 = i;
+    }
+
+    for i in widget::Slider::new(app.convex_hull_color.1, 0.0, 1.0)
+        .label("green")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(0.0, app.convex_hull_color.1, 0.0, 1.0))
+        .down_from(ids.red_convex, 20.0)
+        .set(ids.green_convex, ui)
+    {
+        app.convex_hull_color.1 = i;
+    }
+
+    for i in widget::Slider::new(app.convex_hull_color.2, 0.0, 1.0)
+        .label("blue")
+        .label_color(conrod_core::color::WHITE)
+        .color(Color::Rgba(0.0, 0.0, app.convex_hull_color.2, 1.0))
+        .down_from(ids.green_convex, 20.0)
+        .set(ids.blue_convex, ui)
+    {
+        app.convex_hull_color.2 = i;
+    }
+
     // Return last so other things can anchor from it
-    ids.blue_outer
+    ids.blue_convex
 }
 
 /// Instantiate a GUI demonstrating every widget available in conrod.
@@ -513,12 +555,12 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
         .color(Color::Rgba(app.inner_color.0, app.inner_color.1, app.inner_color.2, 1.0))
         .set(ids.inner_point_path, ui);
 
-    // File Navigator: It's cool
-    // let file_nav_w = ui.kid_area_of(ids.canvas).unwrap().w() * 0.3;
-    // let file_nav_h = ui.kid_area_of(ids.canvas).unwrap().w() * 0.3;
-    // widget::FileNavigator::new(std::path::Path::new("."), All)
-    //     .mid_left_with_margin_on(ids.canvas, MARGIN)
-    //     .align_middle_x_of(ids.button)
-    //     .w_h(file_nav_w, file_nav_h)
-    //     .set(ids.file_nav, ui);
+    // Se quiser desenhar o convex hull, descomenta o código abaixo.
+    //
+    // let convex_hull_pts: Vec<[f64; 2]> = convex_hull_from_graph(&app.sim.ts.layers[OUTER]).to_vec_of_points().iter().map(|(x, y)| [*x * 400.0, *y * 400.0]).collect();
+    // widget::PointPath::new(convex_hull_pts)
+    //     .align_middle_x_of(ids.outer_point_path)
+    //     .align_middle_y_of(ids.outer_point_path)
+    //     .color(Color::Rgba(app.convex_hull_color.0, app.convex_hull_color.1, app.convex_hull_color.2, 1.0))
+    //     .set(ids.convex_hull_path, ui);
 }

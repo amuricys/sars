@@ -1,4 +1,4 @@
-mod convex_hull;
+pub mod convex_hull;
 pub mod effects;
 pub mod types;
 

@@ -150,7 +150,18 @@ impl Graph {
         self.nodes[id].prev(self)
     }
     pub fn to_vec_of_points(&self) -> Vec<(f64, f64)> {
-        panic!("FIX ME") // Dica: muito parecida com `points_iter()` definida abaixo pra ThickSurface
+        let fst = &self.nodes[0];
+        let mut walker = fst;
+        let mut ret = vec![];
+        ret.push((walker.x, walker.y));
+        loop {
+            walker = walker.next(&self);
+            ret.push((walker.x, walker.y));
+            if walker == fst {
+                break;
+            }
+        }
+        ret
     }
 }
 
