@@ -1,6 +1,6 @@
-use graph::types::{Graph};
-use graph::cyclic_graph_from_coords;
 use geo::algorithm::convex_hull::ConvexHull;
+use graph::cyclic_graph_from_coords;
+use graph::types::Graph;
 
 // -----------------------------------
 // Esqueleto: As duas funcoes abaixo não compilam ainda
@@ -13,7 +13,7 @@ fn convex_hull_from_graph(g: &Graph) -> Graph {
     cyclic_graph_from_coords(&vec_of_points)
 }
 
-fn line_string_to_vec_of_points (l: &geo::LineString<f64>) -> Vec<(f64, f64)> {
+fn line_string_to_vec_of_points(l: &geo::LineString<f64>) -> Vec<(f64, f64)> {
     let mut coord = vec![];
     for i in 0..l.0.len() {
         let vec_inside_linestring = &l.0;
@@ -23,6 +23,6 @@ fn line_string_to_vec_of_points (l: &geo::LineString<f64>) -> Vec<(f64, f64)> {
     coord
 }
 
-fn vec_of_points_to_line_string (l: &Vec<(f64, f64)>) -> geo::LineString<f64> {
-    geo::LineString::from( l.clone() )
+fn vec_of_points_to_line_string(l: &Vec<(f64, f64)>) -> geo::LineString<f64> {
+    geo::LineString::from(l.clone())
 }

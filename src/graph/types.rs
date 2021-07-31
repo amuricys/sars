@@ -1,12 +1,7 @@
 use graph::effects::{add_node_, merge_nodes_};
-use graph::{
-    available_node_id, closest_node_across_all_layers, closest_nodes_across_all_layers, closest_nodes_to_some_point, graphs_to_lines, NodeMerging,
-};
-use linalg_helpers::{dist, lines_intersection};
-use renderer::lines_from_thick_surface;
+use graph::{available_node_id, closest_node_across_all_layers, closest_nodes_across_all_layers, graphs_to_lines, NodeMerging};
+use linalg_helpers::lines_intersection;
 use std::collections::HashMap;
-use std::f64::INFINITY;
-use std::iter::once;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Smooth<L, R> {
@@ -118,7 +113,7 @@ impl Node {
 
     pub(crate) fn next_by<'a>(&'a self, g: &'a Graph, dist: usize) -> &'a Node {
         let mut n = self;
-        for i in 0..dist {
+        for _ in 0..dist {
             n = n.next(g);
         }
         n
@@ -131,16 +126,6 @@ impl Node {
     pub(crate) fn pos(&self) -> (f64, f64) {
         (self.x, self.y)
     }
-
-    pub(crate) fn dummy_default() -> Self {
-        Node {
-            id: 0,
-            x: 0.0,
-            y: 0.0,
-            next_id: 0,
-            prev_id: 0,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -150,22 +135,6 @@ pub struct NodeChange {
     pub cur_y: f64,
     pub delta_x: f64,
     pub delta_y: f64,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct NodeChange2 {
-    pub id: NodeIndex,
-    pub new_id: NodeIndex,
-    pub cur_x: f64,
-    pub cur_y: f64,
-    pub delta_x: f64,
-    pub delta_y: f64,
-}
-
-impl NodeChange {
-    pub(crate) fn changed_pos(&self) -> (f64, f64) {
-        (self.cur_x + self.delta_x, self.cur_y + self.delta_y)
-    }
 }
 
 #[derive(Debug, Clone)]

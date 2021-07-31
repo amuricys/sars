@@ -10,7 +10,6 @@
 //! and drawing backends behave in the same manner.
 #![allow(dead_code)]
 
-#[macro_use]
 use conrod_core::*;
 use rand;
 

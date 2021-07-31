@@ -1,5 +1,5 @@
 use graph::types::{Graph, Node, NodeChange, NodeChangeMap};
-use graph::{closest_node_to_some_point, distance_between_nodes, distance_between_points};
+use graph::{closest_node_to_some_point, distance_between_nodes};
 
 pub(crate) fn most_prev_next<'a>(ncm: &NodeChangeMap, g: &'a Graph) -> (&'a Node, &'a Node) {
     let (_, most_next) = ncm
@@ -70,58 +70,6 @@ pub(crate) fn avg_change_dumb(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
     nc.delta_x /= v.len() as f64;
     nc.delta_y /= v.len() as f64;
     nc
-}
-
-#[derive(Copy, Clone)]
-enum PrePost {
-    Pre,
-    Post,
-}
-fn avg_change_essence(tgt: &Node, v: &Vec<&NodeChange>, pp: PrePost) -> NodeChange {
-    /* Sum Of all Distances from the changed nodes to the target node */
-    let sod = v.iter().fold(0.0, |acc, x| {
-        acc + distance_between_points(
-            x.cur_x
-                + match pp {
-                    PrePost::Pre => 0.0,
-                    PrePost::Post => x.delta_x,
-                },
-            x.cur_y
-                + match pp {
-                    PrePost::Pre => 0.0,
-                    PrePost::Post => x.delta_y,
-                },
-            tgt.x,
-            tgt.y,
-        )
-    });
-
-    let mut nc = NodeChange {
-        id: tgt.id,
-        cur_x: tgt.x,
-        cur_y: tgt.y,
-        delta_x: 0.0,
-        delta_y: 0.0,
-    };
-    let mut running_total_of_something = 0.0;
-    for i in v {
-        running_total_of_something += (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));
-        nc.delta_x += i.delta_x * (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));
-        nc.delta_y += i.delta_y * (sod - distance_between_points(i.cur_x + i.delta_x, i.cur_y + i.delta_y, tgt.x, tgt.y));
-    }
-    nc.delta_x /= running_total_of_something;
-    nc.delta_y /= running_total_of_something;
-    nc
-}
-
-/* Averages based on the distance from the changed nodes' PRE-change positions to the target */
-pub fn avg_change_smart(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
-    avg_change_essence(tgt, v, PrePost::Pre)
-}
-
-/* Averages based on the distance from the changed nodes' POST change positions to the target */
-pub fn avg_change_smarter(tgt: &Node, v: &Vec<&NodeChange>) -> NodeChange {
-    avg_change_essence(tgt, v, PrePost::Post)
 }
 
 /*

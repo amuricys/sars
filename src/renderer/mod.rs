@@ -220,7 +220,7 @@ pub fn setup_optimization_and_loop<F>(
         }
         // Se vc quer que pare de rodar
         if sim_state.timestep >= 10000 {
-            break
+            break;
         }
         // Se vc quer que recomece
         let timestamp = sim_state.timestep;

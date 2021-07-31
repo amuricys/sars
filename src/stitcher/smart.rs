@@ -1,4 +1,3 @@
-use graph;
 use graph::distance_between_nodes;
 use graph::types::Graph;
 use pathfinding::directed::dijkstra::dijkstra;
@@ -8,7 +7,6 @@ use std::hash::{Hash, Hasher};
 use std::ops::Add;
 use stitcher::types;
 use stitcher::types::Stitching;
-use stitcher::types::Stitching::Stitch;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RowCol(usize, usize);

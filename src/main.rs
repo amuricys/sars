@@ -24,25 +24,20 @@ extern crate vec1;
 extern crate conrod_core;
 extern crate conrod_piston;
 extern crate find_folder;
+extern crate geo;
 extern crate num_traits;
 extern crate piston_window;
 extern crate regex;
-extern crate geo;
 
 use renderer::draw_mode::draw_mode_rendering;
 use std::env;
-use stitcher::stitch_choice;
 
 fn real_main() {
     let params: types::Params = match std::fs::read_to_string("parameters.toml") {
         Err(_) => panic!("No parameters.toml file found in directory"),
         Ok(content) => file_io::toml_table_to_params(content.parse::<toml::Value>().unwrap()),
     };
-    let mut my_graph = graph::circular_thick_surface(params.initial_radius, params.initial_thickness, params.initial_num_points);
-    let mut rng = rand::thread_rng();
-
     let (mut renderer, mut window) = renderer::setup_renderer();
-
     let mut sim_state = simulated_annealing::SimState::initial_state(&params);
 
     renderer::setup_optimization_and_loop(

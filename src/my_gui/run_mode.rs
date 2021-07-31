@@ -2,15 +2,15 @@ use conrod_core::*;
 
 use conrod_core::widget::text_box::Event;
 use conrod_core::widget::Id;
+use file_io::recorders::{rec_map, record, RecordingState};
 use file_io::toml_table_to_params;
 use graph::types::{INNER, OUTER};
 use num_traits::NumCast;
 use regex::Regex;
 use simulated_annealing::{step, SimState};
+use std::collections::HashMap;
 use std::str::FromStr;
 use types::Params;
-use std::collections::HashMap;
-use file_io::recorders::{rec_map, RecordingState, record};
 
 pub struct TextBoxStates {
     pub initial_thickness: (String, usize),
@@ -48,8 +48,6 @@ impl TextBoxStates {
     }
 }
 
-
-
 /// A demonstration of some application state we want to control with a conrod GUI.
 pub struct RunModeAppState {
     pub(crate) params: Params,
@@ -82,7 +80,7 @@ impl RunModeAppState {
             outer_color: (1.0, 0.0, 1.0),
             inner_color: (0.4, 0.0, 1.0),
             recorders_selection_map: r,
-            recording_state: RecordingState::empty_state("output_gui.csv").unwrap()
+            recording_state: RecordingState::empty_state("output_gui.csv").unwrap(),
         }
     }
     pub fn from(ss: SimState, params: Params) -> Self {
@@ -99,7 +97,7 @@ impl RunModeAppState {
             outer_color: (1.0, 0.0, 1.0),
             inner_color: (0.4, 0.0, 1.0),
             recorders_selection_map: r,
-            recording_state: RecordingState::empty_state("output_gui.csv").unwrap()
+            recording_state: RecordingState::empty_state("output_gui.csv").unwrap(),
         }
     }
 }
@@ -283,7 +281,7 @@ fn make_text_box<T>(
 
 fn make_recorder_widgets(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui: &mut conrod_core::UiCell) {
     /////////////////////////////////
-    //////////////// 
+    ////////////////
     /////////////////////////////////
     const INPUT_FT_SIZE: conrod_core::FontSize = 13;
 
@@ -295,8 +293,10 @@ fn make_recorder_widgets(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui
         (String::from("inner area"), ids.inner_area),
         (String::from("gray matter area"), ids.gray_matter_area),
         (String::from("num inner points"), ids.num_inner_points),
-        (String::from("num outer points"), ids.num_outer_points)
-    ].into_iter().collect();
+        (String::from("num outer points"), ids.num_outer_points),
+    ]
+    .into_iter()
+    .collect();
     let mut p = anchor_id;
     let mut new_recorders_selection_map = app.recorders_selection_map.clone();
     for (rn, activated) in &app.recorders_selection_map {
@@ -304,18 +304,22 @@ fn make_recorder_widgets(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui
         for e in widget::Toggle::new(*activated)
             .label(rn)
             .label_x(conrod_core::position::Relative::Scalar(80.0))
-            .color(if *activated { conrod_core::color::GREEN } else {conrod_core::color::BLACK})
+            .color(if *activated {
+                conrod_core::color::GREEN
+            } else {
+                conrod_core::color::BLACK
+            })
             .label_font_size(INPUT_FT_SIZE)
             .down_from(p, 15.0)
             .w(30.0)
-            .set(*n, ui) {
+            .set(*n, ui)
+        {
             new_recorders_selection_map.insert(rn.clone(), e);
         }
         p = *n;
     }
     app.recorders_selection_map = new_recorders_selection_map;
 }
-
 
 fn make_color_sliders(anchor_id: Id, ids: &Ids, app: &mut RunModeAppState, ui: &mut conrod_core::UiCell) -> Id {
     /////////////////////////////////
@@ -448,7 +452,11 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
         .w_h(button_width, button_height)
         .set(ids.button, ui)
     {
-        app.params.recorders = app.recorders_selection_map.iter().filter_map(|(k,v)| {if *v { Some(k.clone())} else { None }}).collect();
+        app.params.recorders = app
+            .recorders_selection_map
+            .iter()
+            .filter_map(|(k, v)| if *v { Some(k.clone()) } else { None })
+            .collect();
         app.recording_state = RecordingState::initial_state(&app.params).unwrap();
         app.sim = SimState::initial_state(&app.params);
         app.is_paused = true;
@@ -484,12 +492,10 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
         .set(ids.title_recorders, ui);
     let idontknow = make_recorder_widgets(ids.title_recorders, ids, app, ui);
 
-
     widget::Text::new("Outer v Inner colors")
         .right_from(ids.initial_thickness, ui.kid_area_of(ids.canvas).unwrap().w() * 0.7)
         .set(ids.title_color_sliders, ui);
     let shau = make_color_sliders(ids.title_color_sliders, ids, app, ui);
-
 
     /////////////////////////////////
     //// Actual point rendering /////

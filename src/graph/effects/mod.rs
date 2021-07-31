@@ -2,20 +2,12 @@ mod helpers;
 mod pusher_1;
 mod pusher_2;
 
-use graph::{distance_between_nodes, distance_between_points, NodeMerging};
+use graph::{distance_between_nodes, NodeMerging};
 
 use rand::Rng;
 
 use graph::types::*;
-use linalg_helpers::{bisecting_vector, lines_intersection, norm};
 use stitcher::types::Stitching;
-use vec1::Vec1;
-
-struct GraphChanges {
-    added_nodes: Vec<Node>,
-    deleted_nodes: Vec<Node>,
-    changed_nodes: Vec<NodeChange>,
-}
 
 fn apply_change(g: &mut Graph, change: &NodeChange) {
     /* TODO: Not thread safe */

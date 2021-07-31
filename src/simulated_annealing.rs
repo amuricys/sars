@@ -1,7 +1,7 @@
 use graph;
 use graph::circular_thick_surface;
 use graph::effects::{add_node_, apply_changes, changer_of_choice, merge_nodes_, random_change, revert_changes, smooth_change_out};
-use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
+use graph::types::{NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
 use linalg_helpers::lines_intersection;
 use rand::prelude::ThreadRng;
 use rand::Rng;
@@ -161,7 +161,7 @@ impl SimState {
     pub fn initial_state(p: &Params) -> SimState {
         let ts = circular_thick_surface(p.initial_radius, p.initial_thickness, p.initial_num_points);
         let s = stitch_default(&ts);
-        let mut rng = rand::thread_rng();
+        let rng = rand::thread_rng();
 
         SimState {
             ts: ts,

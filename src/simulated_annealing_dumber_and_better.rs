@@ -1,12 +1,9 @@
 use graph;
-use graph::circular_thick_surface;
-use graph::effects::{add_node_, apply_changes, changer_of_choice, merge_nodes_, random_change, revert_changes, smooth_change_out};
-use graph::types::{NodeChange, NodeChangeMap, Smooth, ThickSurface, INNER, OUTER};
+use graph::effects::{add_node_, apply_changes, changer_of_choice, merge_nodes_, random_change, smooth_change_out};
+use graph::types::{Smooth, ThickSurface, INNER, OUTER};
 use linalg_helpers::lines_intersection;
-use rand::prelude::ThreadRng;
 use rand::Rng;
 use simulated_annealing::SimState;
-use stitcher::stitch_default;
 use stitcher::types::Stitching;
 use types::Params;
 
