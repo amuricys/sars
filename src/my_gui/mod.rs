@@ -79,8 +79,12 @@ where
     let size = window.size();
     let (win_w, win_h) = (size.width as conrod_core::Scalar, size.height as conrod_core::Scalar);
     if let Some(e) = conrod_piston::event::convert(event.clone(), win_w, win_h) {
+        /* This function has to "register" input events that don't interact with conrod widgets directly. */
         app.handle_event(&e);
-        // Pass the event down to the UI so it can react and do its magic
+        /* Pass the event down to the UI so it can react and do its magic.
+           This will only handle events that interact with conrod's widget in their pre-defined ways.
+           Which means motion of the mouse across the screen, or mouse clicks that are not in buttons, are excluded.
+         */
         ui.handle_event(e);
     }
 }
@@ -173,7 +177,7 @@ pub fn my_ui_main() {
     let mut app = App::new();
     // Poll events from the window.
     while let Some(event) = window.next() {
-        // Step 1: Handle app (not gui) state
+        // Step 1: Handle app (not gui) state. Meaning stateful changes that happen to the application but don't necessarily result in a visible difference
         handle_app_state(&mut app);
 
         // Step 2: Handle input events (this does some piston/conrod conversion, not sure how it works)
