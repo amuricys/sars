@@ -1,15 +1,14 @@
-mod add_delete_nodes_mode;
 mod run_mode;
 mod draw_mode;
 
 use conrod_core::*;
 use conrod_piston::event::GenericEvent;
-use my_gui::add_delete_nodes_mode::AddDeleteNodesMode;
 use my_gui::run_mode::RunModeAppState;
 use piston_window::texture::UpdateTexture;
 use piston_window::OpenGL;
 use piston_window::{G2d, G2dTexture, TextureSettings};
 use piston_window::{PistonWindow, Window, WindowSettings};
+use my_gui::draw_mode::DrawMode;
 
 pub const WIN_W: u32 = 1600;
 pub const WIN_H: u32 = 840;
@@ -39,13 +38,13 @@ pub fn theme() -> conrod_core::Theme {
 
 enum GuiMode {
     Run(RunModeAppState),
-    AddDelete(AddDeleteNodesMode),
+    Draw(DrawMode)
 }
 struct App {
     mode: GuiMode,
     mouse_pos: [f64; 2],
     just_pressed_left: bool,
-    just_pressed_right: bool,
+    just_pressed_right: bool
 }
 impl App {
     fn new() -> App {
@@ -90,15 +89,15 @@ where
     }
 }
 
-fn attach_gui_instance_to_ui<T>(event: &T, ui: &mut Ui, app: &mut App, run_widget_ids: &run_mode::Ids, draw_widget_ids: &add_delete_nodes_mode::Ids)
+fn attach_gui_instance_to_ui<T>(event: &T, ui: &mut Ui, app: &mut App, run_widget_ids: &run_mode::Ids, draw_widget_ids: &draw_mode::Ids)
 where
     T: GenericEvent + Clone,
 {
     event.update(|_| {
         let mut ui = ui.set_widgets();
         match &mut app.mode {
-            GuiMode::AddDelete(d) => add_delete_nodes_mode::gui(&mut ui, draw_widget_ids, d, app.mouse_pos),
             GuiMode::Run(r) => run_mode::gui(&mut ui, run_widget_ids, r),
+            GuiMode::Draw(d) => draw_mode::gui(&mut ui, draw_widget_ids, d, app.mouse_pos)
         }
     });
 }
@@ -107,12 +106,12 @@ fn handle_app_state(app: &mut App) {
     match &mut app.mode {
         GuiMode::Run(r) => {
             run_mode::handle_app_state(r);
-            if r.is_add_delete_state {
-                app.mode = GuiMode::AddDelete(AddDeleteNodesMode::from(r.sim.clone(), r.params.clone()));
+            if r.is_draw_mode {
+                app.mode = GuiMode::Draw(DrawMode::new());
             }
         }
-        GuiMode::AddDelete(d) => {
-            add_delete_nodes_mode::handle_app_state(d, &app.mouse_pos, app.just_pressed_left, app.just_pressed_right);
+        GuiMode::Draw(d) => {
+            draw_mode::handle_app_state(d, &app.mouse_pos, app.just_pressed_left, app.just_pressed_right);
             // We need to de-set these variables here becuase this fn gets called MORE than the input handler
             if app.just_pressed_left {
                 app.just_pressed_left = false
@@ -120,9 +119,7 @@ fn handle_app_state(app: &mut App) {
             if app.just_pressed_right {
                 app.just_pressed_right = false
             };
-            if !d.is_add_delete_nodes_state {
-                app.mode = GuiMode::Run(RunModeAppState::from(d.sim.clone(), d.params.clone()))
-            }
+            // TODO: How to come back?
         }
     }
 }
@@ -172,7 +169,7 @@ pub fn my_ui_main() {
 
     // Instantiate the generated list of widget identifiers.
     let run_mode_ids = run_mode::Ids::new(ui.widget_id_generator());
-    let draw_mode_ids = add_delete_nodes_mode::Ids::new(ui.widget_id_generator());
+    let draw_mode_ids = draw_mode::Ids::new(ui.widget_id_generator());
 
     // A demonstration of some state that we'd like to control with the App.
     let mut app = App::new();

@@ -85,6 +85,8 @@ fn playin_main() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    let empty_vec: Vec<i64> = Vec::new();
+    let s: Vec<i64> = empty_vec.iter().map(|x| *x).collect();
     if args.len() < 2 {
         real_main()
     } else if args[1] == "debug" {

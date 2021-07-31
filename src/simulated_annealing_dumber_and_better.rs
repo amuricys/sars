@@ -7,7 +7,7 @@ use simulated_annealing::SimState;
 use stitcher::types::Stitching;
 use types::Params;
 
-const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
+pub const PRACTICALLY_INFINITY: f64 = 100_000_000.0;
 
 fn neighbor(
     ts: &ThickSurface,

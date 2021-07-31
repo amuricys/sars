@@ -1,4 +1,5 @@
 use std::f64::consts::PI;
+use std::cmp::Ordering;
 
 pub fn norm(x: f64, y: f64) -> f64 {
     (x * x + y * y).sqrt()
@@ -73,8 +74,45 @@ fn intersection(x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, x4: f64, y
     }
 }
 
+pub fn points_to_cyclic_lines(point_layers: &Vec<Vec<(f64, f64)>>) -> Vec<(f64, f64, f64, f64)> {
+    let mut ret = Vec::new();
+    for layer in point_layers {
+        // Disgusting if :sob:
+        if layer.len() >= 2 {
+            let mut prev = layer[0];
+            for i in 1..layer.len() + 1 {
+                let ind = i % layer.len();
+                ret.push((prev.0, prev.1, layer[ind].0, layer[ind].1));
+            }
+        }
+    }
+    ret
+}
+
+pub fn closest_point(point_layers: &Vec<Vec<(f64, f64)>>, point_x: f64, point_y: f64) -> Option<(f64, f64)> {
+    let point_cmp = |(ax, ay): &&(f64, f64), (bx, by): &&(f64, f64)| {
+        dist(*ax, *ay, point_x, point_y).partial_cmp(
+            &dist(*bx, *by, point_x, point_y)
+        ).unwrap()
+    };
+    let mut glob_min = None;
+    for l in point_layers {
+        match (l.iter().min_by(point_cmp), glob_min) {
+            (Some(lmin), None) =>  glob_min = Some(*lmin),
+            (Some(lmin), Some(gmin)) => if point_cmp(&lmin, &&gmin) == Ordering::Less { glob_min = Some(*lmin) }
+            _ => {}
+        }
+    }
+    glob_min
+    // I tried. but functional rust actually sucks
+    // point_layers
+    //     .iter()
+    //     .map(|l| l.iter().min_by(point_cmp).unwrap())
+    //     .min_by(point_cmp)
+}
+
 pub fn lines_intersection(lines: &Vec<(f64, f64, f64, f64)>) -> Option<(f64, f64)> {
-    for i in 0..lines.len() - 1 {
+    for i in 0..(if lines.len() > 0 {lines.len() - 1} else { 0 }) {
         let (x1, y1, x2, y2) = lines[i];
         for j in i..lines.len() - 1 {
             let (x3, y3, x4, y4) = lines[j];
