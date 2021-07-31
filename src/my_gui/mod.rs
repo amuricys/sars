@@ -1,5 +1,6 @@
 mod add_delete_nodes_mode;
 mod run_mode;
+mod draw_mode;
 
 use conrod_core::*;
 use conrod_piston::event::GenericEvent;
