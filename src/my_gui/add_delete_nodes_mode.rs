@@ -50,26 +50,26 @@ impl TextBoxStates {
 }
 
 /// A demonstration of some application state we want to control with a conrod GUI.
-pub struct DrawModeAppState {
+pub struct AddDeleteNodesMode {
     pub(crate) params: Params,
     text_box_states: TextBoxStates,
     pub(crate) sim: SimState,
-    pub(crate) is_draw_state: bool,
+    pub(crate) is_add_delete_nodes_state: bool,
     pub(crate) just_added_node: usize,
     pub(crate) just_failed_to_add_node: usize,
     pub(crate) just_deleted_node: usize,
     pub(crate) just_failed_to_delete_node: usize,
 }
 
-impl DrawModeAppState {
+impl AddDeleteNodesMode {
     pub fn new() -> Self {
         let params: Params = match std::fs::read_to_string("parameters.toml") {
             Err(_) => panic!("No parameters.toml file found in directory"),
             Ok(content) => toml_table_to_params(content.parse::<toml::Value>().unwrap()),
         };
-        DrawModeAppState {
+        AddDeleteNodesMode {
             sim: SimState::initial_state(&params),
-            is_draw_state: true,
+            is_add_delete_nodes_state: true,
             just_added_node: 0,
             just_failed_to_add_node: 0,
             just_deleted_node: 0,
@@ -79,9 +79,9 @@ impl DrawModeAppState {
         }
     }
     pub fn from(ss: SimState, params: Params) -> Self {
-        DrawModeAppState {
+        AddDeleteNodesMode {
             sim: ss,
-            is_draw_state: true,
+            is_add_delete_nodes_state: true,
             just_added_node: 0,
             just_failed_to_add_node: 0,
             just_deleted_node: 0,
@@ -92,7 +92,7 @@ impl DrawModeAppState {
     }
 }
 
-pub fn handle_app_state(app: &mut DrawModeAppState, mouse_pos: &[f64; 2], just_pressed_left: bool, just_pressed_right: bool) {
+pub fn handle_app_state(app: &mut AddDeleteNodesMode, mouse_pos: &[f64; 2], just_pressed_left: bool, just_pressed_right: bool) {
     const NUM_ITERATIONS_TIL_THING_DISAPPEARS: usize = 450;
 
     if just_pressed_left {
@@ -242,7 +242,7 @@ fn make_text_box<T>(
     }
 }
 
-pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut DrawModeAppState, mouse_pos: [f64; 2]) {
+pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut AddDeleteNodesMode, mouse_pos: [f64; 2]) {
     const MARGIN: conrod_core::Scalar = 30.0;
     const SHAPE_GAP: conrod_core::Scalar = 50.0;
 
@@ -314,7 +314,7 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut DrawModeAppState, 
         .down_from(ids.button, 20.0)
         .set(ids.draw_toggle_0, ui)
     {
-        app.is_draw_state = false;
+        app.is_add_delete_nodes_state = false;
     }
 
     /////////////////////////////////

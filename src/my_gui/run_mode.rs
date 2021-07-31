@@ -54,7 +54,7 @@ pub struct RunModeAppState {
     text_box_states: TextBoxStates,
     pub(crate) sim: SimState,
     is_paused: bool,
-    pub(crate) is_draw_state: bool,
+    pub(crate) is_add_delete_state: bool,
     recording_state: RecordingState,
     recorders_selection_map: HashMap<String, bool>,
     outer_color: (f32, f32, f32),
@@ -74,7 +74,7 @@ impl RunModeAppState {
         RunModeAppState {
             sim: SimState::initial_state(&params),
             is_paused: true,
-            is_draw_state: false,
+            is_add_delete_state: false,
             text_box_states: TextBoxStates::new(&params),
             params: params,
             outer_color: (1.0, 0.0, 1.0),
@@ -91,7 +91,7 @@ impl RunModeAppState {
         RunModeAppState {
             sim: ss,
             is_paused: true,
-            is_draw_state: false,
+            is_add_delete_state: false,
             text_box_states: TextBoxStates::new(&params),
             params: params,
             outer_color: (1.0, 0.0, 1.0),
@@ -199,8 +199,8 @@ widget_ids! {
         tbnoutput_file_path,
         // extra
         extra_id,
-        draw_toggle_0,
-        draw_toggle_1,
+        add_delete_toggle_0,
+        add_delete_toggle_1,
         title_color_sliders,
         red_inner,
         green_inner,
@@ -476,19 +476,19 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
         app.is_paused = !app.is_paused;
     }
 
-    // Always goes to draw state
-    let label = "Draw";
+    // Always goes to add_delete state
+    let label = "Add/Delete nodes";
     for _ in widget::Toggle::new(false)
         .label(label)
         .label_color(conrod_core::color::WHITE)
         .down_from(ids.toggle, 20.0)
-        .set(ids.draw_toggle_0, ui)
+        .set(ids.add_delete_toggle_0, ui)
     {
-        app.is_draw_state = true;
+        app.is_add_delete_state = true;
     }
 
     widget::Text::new("Recorders")
-        .down_from(ids.draw_toggle_0, 2.0)
+        .down_from(ids.add_delete_toggle_0, 2.0)
         .set(ids.title_recorders, ui);
     let idontknow = make_recorder_widgets(ids.title_recorders, ids, app, ui);
 
