@@ -5,12 +5,12 @@
 "compression_factor" = 1.1
 "softness_factor" = 1.0
 "how_smooth" = 8
-"max_merge_steps_away" = 3
-"node_addition_threshold" = 0.015
-"node_deletion_threshold" = 0.005
+"max_merge_steps_away" = 3 # Importante: Se for alto demais, a superfície converge pra um ponto!
+"node_addition_threshold" = 0.015 # Importante: Esses dois controlam a
+"node_deletion_threshold" = 0.005 # densidade de pontos na superfície!
 "low_high" = [-0.2, 0.2]
 "recorders" = ["energy", "outer perimeter", "convex area", "convex gray area", "convex perimeter"]
 "temperature_param" = -0.05
-"output_file_path" = "output.csv"
+"output_file_path" = "output_00.csv"
 # o ------------ 0.41 ----------- o
 # o ---- 0.205 -- o ---- 0.205 ---o

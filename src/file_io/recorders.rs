@@ -8,6 +8,7 @@ use graph::types::{ThickSurface, INNER, OUTER};
 use simulated_annealing::SimState;
 use std::collections::HashMap;
 use types::Params;
+use graph::convex_hull::convex_hull_from_graph;
 
 type RecorderFn = for<'r, 's> fn(&'r ThickSurface, &'s Params) -> f64;
 
@@ -78,6 +79,11 @@ fn num_inner_points(ts: &ThickSurface, _p: &Params) -> f64 {
 fn num_outer_points(ts: &ThickSurface, _p: &Params) -> f64 {
     ts.layers[OUTER].nodes.len() as f64
 }
+fn convex_area (ts: &ThickSurface, _p: &Params) -> f64 { graph::area( &convex_hull_from_graph( &ts.layers[OUTER] ) ) }
+fn convex_perimeter (ts: &ThickSurface, _p: &Params) -> f64 { graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER] ) ) }
+fn convex_gray_area (ts: &ThickSurface, _p: &Params) -> f64 {
+    graph::area(&convex_hull_from_graph(&ts.layers[OUTER])) - graph::area(&ts.layers[INNER])
+}
 
 fn name_to_fn(n: &str) -> Option<RecorderFn> {
     match n {
@@ -89,6 +95,9 @@ fn name_to_fn(n: &str) -> Option<RecorderFn> {
         "gray matter area" => Some(gray_matter_area),
         "num inner points" => Some(num_inner_points),
         "num outer points" => Some(num_outer_points),
+        "convex area" => Some(convex_area),
+        "convex perimeter" => Some(convex_perimeter),
+        "convex gray area" => Some(convex_gray_area),
         _ => None,
     }
 }

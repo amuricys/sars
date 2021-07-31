@@ -31,6 +31,11 @@ extern crate regex;
 
 use renderer::draw_mode::draw_mode_rendering;
 use std::env;
+use simulated_annealing::energy;
+use graph::area;
+use graph::types::OUTER;
+use file_io::recorders;
+use toml::from_str;
 
 fn real_main() {
     let params: types::Params = match std::fs::read_to_string("parameters.toml") {
@@ -47,6 +52,30 @@ fn real_main() {
         |ss| renderer::lines_from_thick_surface(&ss.ts),
         &params,
     )
+}
+
+fn no_gui_main(params_file_path: &str, how_many_reps: u64) {
+    let params: types::Params = match std::fs::read_to_string(params_file_path) {
+        Err(_) => panic!(format!("Parameter file named \"{}\" not found.", params_file_path)),
+        Ok(content) => file_io::toml_table_to_params(content.parse::<toml::Value>().unwrap()),
+    };
+    let mut sim_state = simulated_annealing::SimState::initial_state(&params);
+    let mut recording_state = recorders::RecordingState::initial_state(&params).unwrap_or_else(|| {panic!("Couldn't create recording state")});
+    loop {
+        recorders::record(&sim_state, &params, &mut recording_state);
+        simulated_annealing_dumber_and_better::step(&mut sim_state, &params);
+        if sim_state.timestep % 500 == 0 {
+            println!(
+                "Timestep {}: energy: {}, outer area: {}...",
+                sim_state.timestep,
+                energy(&sim_state.ts, params.initial_gray_matter_area),
+                area(&sim_state.ts.layers[OUTER])
+            )
+        }
+        if sim_state.timestep > how_many_reps { // Não sei de onde tirar esse número
+            break;
+        }
+    }
 }
 
 fn playin_main() {
@@ -66,5 +95,7 @@ fn main() {
         shared_shit::conrod_main();
     } else if args[1] == "my_gui" {
         my_gui::my_ui_main();
+    } else if args[1] == "no_gui" {
+        no_gui_main(&args[2], args[3].parse::<u64>().unwrap());
     }
 }
