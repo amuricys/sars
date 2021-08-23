@@ -555,11 +555,11 @@ pub fn gui(ui: &mut conrod_core::UiCell, ids: &Ids, app: &mut RunModeAppState) {
         .set(ids.inner_point_path, ui);
 
     // Se quiser desenhar o convex hull, descomenta o código abaixo.
-    //
-    // let convex_hull_pts: Vec<[f64; 2]> = convex_hull_from_graph(&app.sim.ts.layers[OUTER]).to_vec_of_points().iter().map(|(x, y)| [*x * 400.0, *y * 400.0]).collect();
-    // widget::PointPath::new(convex_hull_pts)
-    //     .align_middle_x_of(ids.outer_point_path)
-    //     .align_middle_y_of(ids.outer_point_path)
-    //     .color(Color::Rgba(app.convex_hull_color.0, app.convex_hull_color.1, app.convex_hull_color.2, 1.0))
-    //     .set(ids.convex_hull_path, ui);
+    
+     let convex_hull_pts: Vec<[f64; 2]> = convex_hull_from_graph(&app.sim.ts.layers[OUTER]).to_vec_of_points().iter().map(|(x, y)| [*x * 400.0, *y * 400.0]).collect();
+     widget::PointPath::new(convex_hull_pts)
+         .align_middle_x_of(ids.outer_point_path)
+         .align_middle_y_of(ids.outer_point_path)
+         .color(Color::Rgba(app.convex_hull_color.0, app.convex_hull_color.1, app.convex_hull_color.2, 1.0))
+         .set(ids.convex_hull_path, ui);
 }

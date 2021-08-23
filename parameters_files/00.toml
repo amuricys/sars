@@ -1,16 +1,17 @@
-"initial_thickness" = 0.025
-"initial_radius" = 0.95
-"initial_num_points" = 250
+"initial_thickness" = 0.1
+"initial_radius" = 2.0
+"initial_num_points" = 500
 "initial_temperature" = 10.0
 "compression_factor" = 1.1
 "softness_factor" = 1.0
 "how_smooth" = 8
-"max_merge_steps_away" = 3 # Importante: Se for alto demais, a superfície converge pra um ponto!
-"node_addition_threshold" = 0.015 # Importante: Esses dois controlam a
-"node_deletion_threshold" = 0.005 # densidade de pontos na superfície!
+"max_merge_steps_away" = 3 
+"node_addition_threshold" = 0.010
+"node_deletion_threshold" = 0.002 
 "low_high" = [-0.2, 0.2]
-"recorders" = ["energy", "outer perimeter", "convex area", "convex gray area", "convex perimeter"]
+"recorders" = ["log thic p_t","log convex perimeter"]
 "temperature_param" = -0.05
-"output_file_path" = "output_00.csv"
-# o ------------ 0.41 ----------- o
-# o ---- 0.205 -- o ---- 0.205 ---o
+"output_file_path" = "output_files/00.csv"
+
+"alpha" = 1.25
+

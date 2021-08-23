@@ -8,11 +8,13 @@ pub fn toml_table_to_params(table: toml::Value) -> types::Params {
         toml::Value::Table(m) => {
             let initial_radius = m.get("initial_radius").unwrap().as_float().unwrap();
             let initial_thickness = m.get("initial_thickness").unwrap().as_float().unwrap();
+            let alpha = m.get("alpha").unwrap().as_float().unwrap();
             let initial_area = PI * (initial_radius.powf(2.0) - (initial_radius - initial_thickness).powf(2.0));
             types::Params {
                 initial_thickness: initial_thickness,
                 initial_radius: initial_radius,
                 initial_gray_matter_area: initial_area,
+                alpha: alpha,                
                 initial_num_points: m.get("initial_num_points").unwrap().as_integer().unwrap() as usize,
                 initial_temperature: m.get("initial_temperature").unwrap().as_float().unwrap(),
                 compression_factor: m.get("compression_factor").unwrap().as_float().unwrap(),

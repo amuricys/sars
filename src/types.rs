@@ -15,4 +15,6 @@ pub struct Params {
     pub recorders: Vec<String>,
     pub temperature_param: f64,
     pub output_file_path: String,
+
+    pub alpha: f64,
 }

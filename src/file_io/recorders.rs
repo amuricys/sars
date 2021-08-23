@@ -1,7 +1,7 @@
 use graph;
 use simulated_annealing;
 
-use std::fs::File;
+use std::{fs::File};
 use std::io::Write;
 
 use graph::types::{ThickSurface, INNER, OUTER};
@@ -53,6 +53,10 @@ fn outer_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::perimeter(&ts.layers[OUTER])
 }
 
+fn log_outer_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
+    graph::perimeter(&ts.layers[OUTER]).log10()
+}
+
 fn inner_perimeter(ts: &ThickSurface, _p: &Params) -> f64 {
     graph::perimeter(&ts.layers[INNER])
 }
@@ -79,25 +83,87 @@ fn num_inner_points(ts: &ThickSurface, _p: &Params) -> f64 {
 fn num_outer_points(ts: &ThickSurface, _p: &Params) -> f64 {
     ts.layers[OUTER].nodes.len() as f64
 }
-fn convex_area (ts: &ThickSurface, _p: &Params) -> f64 { graph::area( &convex_hull_from_graph( &ts.layers[OUTER] ) ) }
-fn convex_perimeter (ts: &ThickSurface, _p: &Params) -> f64 { graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER] ) ) }
+
+fn convex_area (ts: &ThickSurface, _p: &Params) -> f64 { 
+    graph::area( &convex_hull_from_graph( &ts.layers[OUTER] ) ) 
+}
+
+fn convex_perimeter (ts: &ThickSurface, _p: &Params) -> f64 { 
+    graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER] ) ) 
+}
+
+fn log_convex_perimeter (ts: &ThickSurface, _p: &Params) -> f64 { 
+   graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER] ) ).log10() 
+   
+}
+
 fn convex_gray_area (ts: &ThickSurface, _p: &Params) -> f64 {
     graph::area(&convex_hull_from_graph(&ts.layers[OUTER])) - graph::area(&ts.layers[INNER])
 }
+
+fn thickness (ts: &ThickSurface, _p: &Params) -> f64 {
+    graph::gray_matter_area(ts)/graph::perimeter(&ts.layers[OUTER])
+}
+
+fn log_thickness (ts: &ThickSurface, _p: &Params) -> f64 {
+   (graph::gray_matter_area(ts)/graph::perimeter(&ts.layers[OUTER])).log10()
+}
+
+fn thick_peri (ts: &ThickSurface, _p: &Params) -> f64 {
+   ((graph::area(&ts.layers[INNER])/graph::perimeter(&ts.layers[OUTER]))*graph::area(&ts.layers[OUTER])).sqrt()    
+}
+
+
+
+fn bigk_const (ts: &ThickSurface, _p: &Params) -> f64 {
+        0.5 * ( graph::gray_matter_area(ts)/graph::perimeter(&ts.layers[OUTER])).log10()
+     + graph::perimeter(&ts.layers[OUTER]).log10()
+     - 1.5 * graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER] ) ) .log10()
+    
+}
+
+fn s_const (ts: &ThickSurface, _p: &Params) -> f64 {
+    - 2.25 *  (graph::gray_matter_area(ts)/graph::perimeter(&ts.layers[OUTER])).log10()
+    + 1.5 * graph::perimeter(&ts.layers[OUTER]).log10()
+     + 0.75 * graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER] ) ).log10()
+}
+
+fn i_const (ts: &ThickSurface, _p: &Params) -> f64 {
+    (graph::gray_matter_area(ts)/graph::perimeter(&ts.layers[OUTER])).log10()
+    + graph::perimeter(&ts.layers[OUTER]).log10() 
+    + graph::perimeter( &convex_hull_from_graph( &ts.layers[OUTER])).log10()
+}
+
+fn log_thic_p_t (ts: &ThickSurface, _p: &Params) -> f64 {
+    0.5*(graph::gray_matter_area(ts)/graph::perimeter(&ts.layers[OUTER])).log10() +  graph::perimeter(&ts.layers[OUTER]).log10() 
+}
+
+
+ 
+
 
 fn name_to_fn(n: &str) -> Option<RecorderFn> {
     match n {
         "energy" => Some(energy),
         "outer perimeter" => Some(outer_perimeter),
+        "log outer perimeter" => Some(log_outer_perimeter),
         "inner perimeter" => Some(inner_perimeter),
         "outer area" => Some(outer_area),
         "inner area" => Some(inner_area),
         "gray matter area" => Some(gray_matter_area),
+        "convex perimeter" => Some(convex_perimeter),
+        "log convex perimeter" => Some(log_convex_perimeter),
+        "convex area" => Some(convex_area),        
+        "convex gray matter area" => Some(convex_gray_area),
         "num inner points" => Some(num_inner_points),
         "num outer points" => Some(num_outer_points),
-        "convex area" => Some(convex_area),
-        "convex perimeter" => Some(convex_perimeter),
-        "convex gray area" => Some(convex_gray_area),
+        "thickness" => Some(thickness),
+        "log thickness" => Some(log_thickness),
+        "thick_peri" => Some(thick_peri),        
+        "K" => Some(bigk_const),
+        "S" => Some(s_const),
+        "I" => Some(i_const),
+        "log thic p_t"=> Some(log_thic_p_t),
         _ => None,
     }
 }
